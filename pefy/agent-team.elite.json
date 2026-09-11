@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0.0",
+  "product": "PEFY ΩAGENT TEAM ELITE™",
+  "owner": "PEFY-GG / PEFY-TECH",
+  "scope": "account-wide-default",
+  "desired_mode": "production",
+  "runtime_status": "code-ready; infrastructure-binding-required",
+  "purpose": "Governed multi-agent workforce for engineering, operations, research, audit, compliance and business execution.",
+  "components": {
+    "control_plane": "PEFY-TECH/openclaw-mission-control",
+    "team_runtime": "PEFY-TECH/ClawTeam-OpenClaw",
+    "agent_runtime": "PEFY-TECH/openclaw",
+    "skills_source": "PEFY ΩEXPERT SKILL FABRIC™ (ΩESF™)",
+    "work_contracts": "PEFY ΩWORKGRAPH",
+    "model_routing": "PEFY ΩOmniRoute / Ω9REA",
+    "security": "PEFY ΩCODEX SECURITY FABRIC™ (ΩCSF™)"
+  },
+  "governance": {
+    "external_framework_policy": "adapter-only-until-qualified",
+    "upstream_sync": "manual-reviewed-only",
+    "promotion_requires": [
+      "canonical-upstream-verification",
+      "license-and-SPDX-review",
+      "SBOM-and-provenance",
+      "CVE-GHSA-OSV-and-CISA-KEV-review",
+      "deterministic-rollback",
+      "tenant-isolation-evidence",
+      "security-tests",
+      "functional-performance-reliability-benchmarks",
+      "operator-acceptance"
+    ],
+    "forbidden": [
+      "blind-upstream-rebase",
+      "automatic-mass-install-of-skills",
+      "plaintext-secrets-in-repository",
+      "unreviewed-production-self-modification",
+      "unbounded-agent-spawn",
+      "destructive-actions-without-policy-check"
+    ]
+  },
+  "team": {
+    "leader": {
+      "id": "omega-executive-orchestrator",
+      "responsibility": "plan, decompose, route, coordinate, verify and close missions",
+      "max_parallel_workers": 12
+    },
+    "core_roles": [
+      "strategy-and-governance",
+      "enterprise-and-solution-architecture",
+      "software-engineering",
+      "data-and-ai-engineering",
+      "cybersecurity-and-devsecops",
+      "sre-platform-and-observability",
+      "quality-test-and-validation",
+      "risk-compliance-and-audit",
+      "finance-and-commercial-analysis",
+      "legal-policy-and-contract-review",
+      "operations-and-project-management",
+      "research-knowledge-and-documentation"
+    ],
+    "dynamic_roles": "resolved from ΩESF capability registry on demand",
+    "spawn_policy": {
+      "default_workers": 3,
+      "soft_limit": 8,
+      "hard_limit": 12,
+      "require_reason_above_soft_limit": true,
+      "require_budget_and-capability-check": true
+    }
+  },
+  "execution_policy": {
+    "L0": "read-only analysis; auto-permitted",
+    "L1": "reversible low-risk internal write; permitted with audit trail",
+    "L2": "external communication, repository write, deployment change or data mutation; explicit policy approval required",
+    "L3": "privileged, high-impact, financial, legal, security-sensitive or irreversible action; two-person or equivalent dual-control approval",
+    "L4": "prohibited by policy or law; deny and log"
+  },
+  "routing": {
+    "principle": "capability-first, risk-aware, cost-aware and evidence-driven",
+    "model_selection": "ΩOmniRoute / Ω9REA",
+    "skill_selection": "ΩESF certified-only in production",
+    "fallback": "degrade safely to human review rather than silently lower controls"
+  },
+  "security_controls": {
+    "least_privilege": true,
+    "tenant_isolation": true,
+    "secret_source": "external secret manager or GitHub environment secrets",
+    "network_default": "deny-by-default where supported",
+    "audit_logging": "mandatory",
+    "provenance": "mandatory",
+    "artifact_signing": "required for release promotion",
+    "human_in_the_loop": "risk-tiered",
+    "prompt_and_tool_injection_defense": "mandatory",
+    "supply_chain_scanning": "mandatory"
+  },
+  "reliability": {
+    "health_checks": true,
+    "graceful_shutdown": true,
+    "checkpointing": true,
+    "retry_policy": "bounded-exponential-backoff",
+    "idempotency": "required-for-retryable-writes",
+    "rollback": "tested-before-promotion",
+    "target_control_plane_availability": "99.9%"
+  },
+  "observability": {
+    "logs": "structured",
+    "metrics": "required",
+    "traces": "required-for-cross-agent-missions",
+    "mission_correlation_id": "required",
+    "agent_cost_and-token-accounting": "required",
+    "decision-and-approval-ledger": "required"
+  },
+  "production_kpis": [
+    "mission-success-rate",
+    "first-pass-quality-rate",
+    "mean-time-to-complete",
+    "human-escalation-rate",
+    "policy-violation-rate",
+    "rollback-success-rate",
+    "security-gate-pass-rate",
+    "cost-per-successful-mission",
+    "agent-utilization",
+    "traceability-completeness"
+  ]
+}
