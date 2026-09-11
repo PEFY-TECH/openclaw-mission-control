@@ -45,7 +45,8 @@ export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-auto}"
 docker compose -f compose.yml config >/dev/null
 pass "docker compose configuration validated"
 
-if grep -RInE --exclude='*.example' --exclude='*.md' '(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)' pefy .github 2>/dev/null; then
+SECRET_PATTERN='(^|[^A-Za-z0-9])(sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)'
+if grep -RInE --exclude='*.example' --exclude='*.md' "$SECRET_PATTERN" pefy .github 2>/dev/null; then
   fail "potential committed secret detected"
 fi
 pass "basic secret-pattern scan passed"
