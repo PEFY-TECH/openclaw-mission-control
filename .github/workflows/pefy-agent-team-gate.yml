@@ -1,0 +1,57 @@
+name: PEFY Agent Team Gate
+
+on:
+  pull_request:
+    paths:
+      - 'pefy/**'
+      - 'compose.yml'
+      - '.github/workflows/pefy-agent-team-gate.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'pefy/**'
+      - 'compose.yml'
+      - '.github/workflows/pefy-agent-team-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pefy-agent-team-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  governance-and-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AUTH_MODE: local
+      LOCAL_AUTH_TOKEN: pefy-ci-local-auth-token-0123456789-0123456789-0123456789-secure
+      POSTGRES_PASSWORD: pefy-ci-nondefault-password-only-for-validation
+      BASE_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate PEFY elite policy
+        run: |
+          python3 -m json.tool pefy/agent-team.elite.json >/dev/null
+          bash -n pefy/scripts/preflight.sh
+          bash pefy/scripts/preflight.sh
+
+      - name: Verify no production runtime is falsely asserted
+        run: |
+          python3 - <<'PY'
+          import json
+          d = json.load(open('pefy/agent-team.elite.json'))
+          status = d['runtime_status']
+          if status == 'active-production':
+              raise SystemExit('Production may only be marked active after infrastructure binding and runtime evidence.')
+          print('Runtime status is evidence-safe:', status)
+          PY
+
+      - name: Validate compose model
+        run: docker compose -f compose.yml config >/dev/null
