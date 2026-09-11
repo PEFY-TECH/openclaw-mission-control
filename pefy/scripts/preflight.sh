@@ -16,7 +16,7 @@ if not p.exists():
     raise SystemExit('missing pefy/agent-team.elite.json')
 d = json.loads(p.read_text())
 assert d['desired_mode'] == 'production'
-assert d['team']['leader']['hard_limit'] <= 12
+assert d['team']['spawn_policy']['hard_limit'] <= 12
 assert d['security_controls']['least_privilege'] is True
 assert d['security_controls']['audit_logging'] == 'mandatory'
 assert d['security_controls']['provenance'] == 'mandatory'
