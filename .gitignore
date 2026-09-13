@@ -18,6 +18,10 @@ node_modules/
 # Worktrees
 .worktrees/
 
+# PEFY production evidence and encrypted backup outputs
+/artifacts/
+/backups/
+
 # Accidental literal "~" directories (e.g. when a configured path contains "~" but isn't expanded)
 backend/~/
 backend/coverage.*
