@@ -31,6 +31,11 @@ type ProjectRecord = {
   nextGate: string;
 };
 
+const missionControlAssurance: AssuranceState =
+  process.env.NEXT_PUBLIC_PEFY_MC_ASSURANCE === "code-qualified"
+    ? "Code qualified"
+    : "Code gate pending";
+
 const PROJECTS: ProjectRecord[] = [
   {
     name: "OpenClaw Mission Control",
@@ -39,17 +44,16 @@ const PROJECTS: ProjectRecord[] = [
     role: "Governance and operations control plane",
     category: "Control plane",
     registryState: "Core",
-    assuranceState: "Code qualified",
+    assuranceState: missionControlAssurance,
     description:
       "Central operating surface for organizations, boards, tasks, approvals, gateways, agents, activity and API-backed automation.",
     capabilities: ["Governance", "Approvals", "Audit trail", "Gateway operations"],
     evidence: [
-      "Backend and frontend CI passed",
-      "Frontend build and tests passed",
-      "Cypress E2E passed",
-      "Linux/Docker and macOS installer smoke tests passed",
+      "The prior merged baseline passed backend/frontend CI, Cypress E2E and installer smoke tests",
+      "The current release defaults to Code gate pending and may advertise Code qualified only when the accepted deployment explicitly sets NEXT_PUBLIC_PEFY_MC_ASSURANCE=code-qualified",
+      "Runtime qualification remains separate from repository code qualification",
     ],
-    nextGate: "Evidence a real production host, runtime health, controlled smoke mission and rollback target.",
+    nextGate: "Pass the exact release CI/review gates; then evidence a real production host, runtime health, controlled smoke mission and rollback target.",
   },
   {
     name: "ClawTeam OpenClaw",
@@ -67,8 +71,9 @@ const PROJECTS: ProjectRecord[] = [
       "Concrete-agent OpenClaw allowlist required",
       "Regression qualification tests added",
       "P1 review findings remediated",
+      "A fresh qualification commit still produced no GitHub Actions run on this repository",
     ],
-    nextGate: "Enable GitHub Actions, pass Ruff plus Ubuntu/macOS Python 3.10-3.12 matrix, then merge and qualify on the real host.",
+    nextGate: "Enable GitHub Actions, pass Ruff plus Ubuntu/macOS Python 3.10-3.12 matrix, then merge and qualify on a code-qualified OpenClaw host.",
   },
   {
     name: "OpenClaw",
@@ -83,12 +88,12 @@ const PROJECTS: ProjectRecord[] = [
     capabilities: ["Agent runtime", "CLI", "Skills", "Gateway integration"],
     evidence: [
       "Canonical upstream openclaw/openclaw and MIT repository license were confirmed",
-      "Review on 2026-09-13 measured 0 PEFY-only and 68,324 upstream-only commits: drift class U4",
-      "No GitHub Actions runs were visible on the PEFY fork at review time",
-      "PEFY main branch was unprotected at review time",
-      "No automatic upstream sync, merge or rebase was performed",
+      "Sovereign rebaseline evidence confirmed drift class U4 with 68,324 upstream-only commits on the reviewed candidate",
+      "PEFY Sovereign Rebaseline workflow passed and confirmed no automatic upstream merge, rebase or sync",
+      "Repository CI, Install Smoke and Workflow Sanity were launched for the governance PR and remain separate qualification gates",
+      "PEFY main branch was unprotected at initial review time",
     ],
-    nextGate: "Pin a reviewed upstream candidate; complete provenance, security/advisory, compatibility, CI, benchmark and rollback gates; then perform real-host runtime qualification. Do not blind-sync upstream.",
+    nextGate: "Select and pin a reviewed upstream candidate; complete provenance, security/advisory, compatibility, CI, benchmark and rollback gates; then perform real-host runtime qualification. Do not blind-sync upstream.",
   },
   {
     name: "AgentScope",
@@ -250,7 +255,7 @@ export default function ProjectGalleryPage() {
               <CheckCircle2 className="h-4 w-4" /> Code qualified
             </div>
             <p className="mt-2 text-2xl font-semibold text-emerald-950">{codeQualified}</p>
-            <p className="mt-1 text-xs text-emerald-900/70">Qualified repository baseline; host runtime is evaluated separately.</p>
+            <p className="mt-1 text-xs text-emerald-900/70">Qualified release evidence is deployment-specific; previews default to pending.</p>
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-amber-950">
