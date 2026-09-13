@@ -97,21 +97,27 @@ jobs:
           compose = Path("compose.yml").read_text(encoding="utf-8")
           production_compose = Path("compose.production.yml").read_text(encoding="utf-8")
           main = Path("backend/app/main.py").read_text(encoding="utf-8")
+          readiness = Path("backend/app/core/readiness.py").read_text(encoding="utf-8")
           gallery = Path("frontend/src/app/project-gallery/page.tsx").read_text(encoding="utf-8")
 
           required = {
               "dependency-aware readyz": "check_readiness()" in main,
               "503 not-ready semantics": "HTTP_503_SERVICE_UNAVAILABLE" in main,
+              "readiness probes RQ Redis": '"rq_redis"' in readiness and "settings.rq_redis_url" in readiness,
+              "readiness I/O is bounded": "asyncio.timeout" in readiness,
               "development compose uses readyz": "/readyz" in compose,
               "production compose uses readyz": "/readyz" in production_compose,
               "production db has no published port": "127.0.0.1:${POSTGRES_PORT" not in production_compose,
               "production data network is internal": "internal: true" in production_compose,
               "production rate limit uses redis": "RATE_LIMIT_BACKEND: redis" in production_compose,
               "smoke proves denied access": "unauthenticated-bootstrap" in smoke,
-              "smoke does not record auth token": "secret_material_recorded" in smoke,
+              "smoke does not persist auth profiles": "authenticated-bootstrap.json" not in smoke and "unauthenticated-bootstrap.json" not in smoke,
+              "smoke does not persist UI body": "project-gallery.html" not in smoke,
+              "smoke explicitly records redaction": '"identity_profile_recorded": False' in smoke,
               "backup requires age encryption": "PEFY_BACKUP_AGE_RECIPIENT" in backup and "age --recipient" in backup,
               "restore requires destructive confirmation": "RESTORE_PRODUCTION_DATA" in restore,
               "gallery separates assurance state": "AssuranceState" in gallery,
+              "gallery defaults Mission Control to pending": "NEXT_PUBLIC_PEFY_MC_ASSURANCE" in gallery and "code-gate-pending" in production_compose,
               "gallery declares evaluation-only candidates": "Evaluation only" in gallery,
               "gallery exposes U4 runtime blocker": "Rebaseline blocked" in gallery,
           }
