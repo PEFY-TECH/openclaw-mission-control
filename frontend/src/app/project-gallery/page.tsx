@@ -14,6 +14,7 @@ type AssuranceState =
   | "Code qualified"
   | "Code gate pending"
   | "Runtime gate pending"
+  | "Rebaseline blocked"
   | "Evaluation only";
 
 type ProjectRecord = {
@@ -76,16 +77,18 @@ const PROJECTS: ProjectRecord[] = [
     role: "Default governed agent runtime",
     category: "Runtime",
     registryState: "Core",
-    assuranceState: "Runtime gate pending",
+    assuranceState: "Rebaseline blocked",
     description:
-      "Registered default runtime for the PEFY agent workforce. Runtime-active status is granted only after host-level verification.",
+      "Registered default runtime whose current PEFY fork requires a controlled sovereign rebaseline before code or host qualification.",
     capabilities: ["Agent runtime", "CLI", "Skills", "Gateway integration"],
     evidence: [
-      "Repository registered as canonical runtime",
-      "Execution policy requires allowlist mode",
-      "ClawTeam skill presence is a production qualification gate",
+      "Canonical upstream openclaw/openclaw and MIT repository license were confirmed",
+      "Review on 2026-09-13 measured 0 PEFY-only and 68,324 upstream-only commits: drift class U4",
+      "No GitHub Actions runs were visible on the PEFY fork at review time",
+      "PEFY main branch was unprotected at review time",
+      "No automatic upstream sync, merge or rebase was performed",
     ],
-    nextGate: "Verify production credentials, gateway connectivity, skill load, effective approvals, logs and auditable smoke execution.",
+    nextGate: "Pin a reviewed upstream candidate; complete provenance, security/advisory, compatibility, CI, benchmark and rollback gates; then perform real-host runtime qualification. Do not blind-sync upstream.",
   },
   {
     name: "AgentScope",
@@ -179,6 +182,7 @@ const ASSURANCE_FILTERS = [
   "Code qualified",
   "Code gate pending",
   "Runtime gate pending",
+  "Rebaseline blocked",
   "Evaluation only",
 ] as const;
 
@@ -188,6 +192,7 @@ type AssuranceFilter = (typeof ASSURANCE_FILTERS)[number];
 function assuranceClass(state: AssuranceState) {
   if (state === "Code qualified") return "bg-emerald-100 text-emerald-800";
   if (state === "Evaluation only") return "bg-slate-100 text-slate-700";
+  if (state === "Rebaseline blocked") return "bg-rose-100 text-rose-800";
   return "bg-amber-100 text-amber-900";
 }
 
@@ -252,7 +257,7 @@ export default function ProjectGalleryPage() {
               <CircleDashed className="h-4 w-4" /> Core gates pending
             </div>
             <p className="mt-2 text-2xl font-semibold text-amber-950">{corePending}</p>
-            <p className="mt-1 text-xs text-amber-900/70">Core components still requiring CI or real-host evidence.</p>
+            <p className="mt-1 text-xs text-amber-900/70">Core components still requiring CI, rebaseline or real-host evidence.</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
