@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, FastAPI, status
+from fastapi import APIRouter, FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi_pagination import add_pagination
@@ -36,6 +36,7 @@ from app.core.error_handling import install_error_handling
 from app.core.logging import configure_logging, get_logger
 from app.core.rate_limit import validate_rate_limit_redis
 from app.core.rate_limit_backend import RateLimitBackend
+from app.core.readiness import check_readiness
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.db.session import init_db
 from app.schemas.health import HealthStatusResponse
@@ -523,17 +524,28 @@ def healthz() -> HealthStatusResponse:
     tags=["health"],
     response_model=HealthStatusResponse,
     summary="Readiness Check",
-    description="Readiness probe endpoint for service orchestration checks.",
+    description="Dependency-aware readiness probe for service orchestration checks.",
     responses={
         status.HTTP_200_OK: {
-            "description": "Service is ready.",
+            "description": "Critical dependencies are ready and the service may receive traffic.",
             "content": {"application/json": {"example": {"ok": True}}},
-        }
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "description": "One or more critical dependencies are unavailable.",
+            "content": {"application/json": {"example": {"ok": False}}},
+        },
     },
 )
-def readyz() -> HealthStatusResponse:
-    """Readiness probe endpoint for service orchestration checks."""
-    return HealthStatusResponse(ok=True)
+async def readyz(response: Response) -> HealthStatusResponse:
+    """Report readiness without exposing dependency URLs, credentials, or error details."""
+    result = await check_readiness()
+    if not result.ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        logger.warning(
+            "app.readiness.not_ready dependencies=%s",
+            ",".join(result.failed_dependencies),
+        )
+    return HealthStatusResponse(ok=result.ok)
 
 
 api_v1 = APIRouter(prefix="/api/v1")
