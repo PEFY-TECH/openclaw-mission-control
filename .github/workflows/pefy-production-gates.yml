@@ -6,7 +6,9 @@ on:
       - "backend/**"
       - "frontend/src/app/project-gallery/**"
       - "compose.yml"
-      - "scripts/pefy-production-smoke.sh"
+      - "compose.production.yml"
+      - "deploy/pefy-production.env.example"
+      - "scripts/pefy-*.sh"
       - "docs/pefy-**"
       - ".github/workflows/pefy-production-gates.yml"
   push:
@@ -15,7 +17,9 @@ on:
       - "backend/**"
       - "frontend/src/app/project-gallery/**"
       - "compose.yml"
-      - "scripts/pefy-production-smoke.sh"
+      - "compose.production.yml"
+      - "deploy/pefy-production.env.example"
+      - "scripts/pefy-*.sh"
       - "docs/pefy-**"
       - ".github/workflows/pefy-production-gates.yml"
   workflow_dispatch:
@@ -43,10 +47,14 @@ jobs:
       - name: Install uv
         run: python -m pip install --upgrade pip uv
 
-      - name: Validate production smoke script syntax
-        run: bash -n scripts/pefy-production-smoke.sh
+      - name: Validate PEFY production shell syntax
+        run: |
+          bash -n scripts/pefy-production-smoke.sh
+          bash -n scripts/pefy-backup-postgres.sh
+          bash -n scripts/pefy-verify-backup.sh
+          bash -n scripts/pefy-restore-postgres.sh
 
-      - name: Validate Compose configuration
+      - name: Validate development Compose configuration
         env:
           AUTH_MODE: local
           BASE_URL: http://localhost:8000
@@ -54,6 +62,17 @@ jobs:
           export LOCAL_AUTH_TOKEN="$(python -c 'print("x" * 64)')"
           export POSTGRES_PASSWORD="$(python -c 'print("p" * 32)')"
           docker compose -f compose.yml config --quiet
+
+      - name: Validate hardened production Compose configuration
+        env:
+          AUTH_MODE: local
+          BASE_URL: https://api.example.invalid
+          NEXT_PUBLIC_API_URL: https://api.example.invalid
+          CORS_ORIGINS: https://mission-control.example.invalid
+        run: |
+          export LOCAL_AUTH_TOKEN="$(python -c 'print("x" * 64)')"
+          export POSTGRES_PASSWORD="$(python -c 'print("p" * 32)')"
+          docker compose -f compose.production.yml config --quiet
 
       - name: Install backend dependencies
         run: make backend-sync
@@ -73,18 +92,28 @@ jobs:
           from pathlib import Path
 
           smoke = Path("scripts/pefy-production-smoke.sh").read_text(encoding="utf-8")
+          backup = Path("scripts/pefy-backup-postgres.sh").read_text(encoding="utf-8")
+          restore = Path("scripts/pefy-restore-postgres.sh").read_text(encoding="utf-8")
           compose = Path("compose.yml").read_text(encoding="utf-8")
+          production_compose = Path("compose.production.yml").read_text(encoding="utf-8")
           main = Path("backend/app/main.py").read_text(encoding="utf-8")
           gallery = Path("frontend/src/app/project-gallery/page.tsx").read_text(encoding="utf-8")
 
           required = {
               "dependency-aware readyz": "check_readiness()" in main,
               "503 not-ready semantics": "HTTP_503_SERVICE_UNAVAILABLE" in main,
-              "compose uses readyz": "/readyz" in compose,
+              "development compose uses readyz": "/readyz" in compose,
+              "production compose uses readyz": "/readyz" in production_compose,
+              "production db has no published port": "127.0.0.1:${POSTGRES_PORT" not in production_compose,
+              "production data network is internal": "internal: true" in production_compose,
+              "production rate limit uses redis": "RATE_LIMIT_BACKEND: redis" in production_compose,
               "smoke proves denied access": "unauthenticated-bootstrap" in smoke,
               "smoke does not record auth token": "secret_material_recorded" in smoke,
+              "backup requires age encryption": "PEFY_BACKUP_AGE_RECIPIENT" in backup and "age --recipient" in backup,
+              "restore requires destructive confirmation": "RESTORE_PRODUCTION_DATA" in restore,
               "gallery separates assurance state": "AssuranceState" in gallery,
               "gallery declares evaluation-only candidates": "Evaluation only" in gallery,
+              "gallery exposes U4 runtime blocker": "Rebaseline blocked" in gallery,
           }
           failed = [name for name, ok in required.items() if not ok]
           if failed:
@@ -104,8 +133,16 @@ jobs:
             echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "generated_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > artifacts/pefy-production-gates/provenance.txt
-          sha256sum backend/uv.lock frontend/package-lock.json compose.yml \
+          sha256sum \
+            backend/uv.lock \
+            frontend/package-lock.json \
+            compose.yml \
+            compose.production.yml \
+            deploy/pefy-production.env.example \
             scripts/pefy-production-smoke.sh \
+            scripts/pefy-backup-postgres.sh \
+            scripts/pefy-verify-backup.sh \
+            scripts/pefy-restore-postgres.sh \
             > artifacts/pefy-production-gates/artifact-sha256.txt
 
       - name: Upload production-gate evidence
