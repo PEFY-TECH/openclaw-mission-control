@@ -7,14 +7,16 @@ on:
       - ".github/workflows/pefy-lock-candidate.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   generate-lock-candidate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout candidate
+      - name: Checkout source PR branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -38,7 +40,7 @@ jobs:
           cp package-lock.json ../artifacts/pefy-lock-candidate/package-lock.json
           cp package.json ../artifacts/pefy-lock-candidate/package.json
 
-      - name: Report production severity
+      - name: Enforce candidate production severity
         run: |
           python - <<'PY'
           import json
@@ -49,9 +51,29 @@ jobs:
           print("Candidate production audit:", counts)
           if not isinstance(counts, dict):
               raise SystemExit("npm audit metadata missing")
+          critical = int(counts.get("critical", 0) or 0)
+          high = int(counts.get("high", 0) or 0)
+          if critical or high:
+              raise SystemExit(f"Refusing to commit vulnerable lock candidate: critical={critical}, high={high}")
           PY
 
+      - name: Commit audited lockfile to PR branch
+        env:
+          PEFY_PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- frontend/package-lock.json; then
+            echo "Lockfile already matches audited dependency graph"
+            exit 0
+          fi
+          git config user.name "PEFY Production Gate"
+          git config user.email "pefy-production-gate@users.noreply.github.com"
+          git add frontend/package-lock.json
+          git commit -m "security(frontend): refresh audited dependency lockfile"
+          git push origin "HEAD:${PEFY_PR_BRANCH}"
+
       - name: Upload lock candidate evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pefy-frontend-lock-candidate
