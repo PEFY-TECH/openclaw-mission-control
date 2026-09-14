@@ -12,7 +12,9 @@ from app.core.readiness import ReadinessResult
 
 
 @pytest.mark.asyncio
-async def test_readyz_returns_ok_when_dependencies_are_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_readyz_returns_ok_when_dependencies_are_ready(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def _ready() -> ReadinessResult:
         return ReadinessResult(ok=True)
 
