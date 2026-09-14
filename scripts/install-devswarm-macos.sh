@@ -11,7 +11,7 @@ EXPECTED_SHA256="${PEFY_DEVSWARM_EXPECTED_SHA256:-}"
 EXPECTED_TEAM_ID="${PEFY_DEVSWARM_EXPECTED_TEAM_ID:-}"
 INSTALL_DIR="${PEFY_DEVSWARM_INSTALL_DIR:-/Applications}"
 LAUNCH_AFTER_INSTALL="${PEFY_DEVSWARM_LAUNCH:-0}"
-KEEP_DOWNLOAD="${PEFY_DEVSWARM_KEEP_DOWNLOAD:-0}"
+KEEP_DOWNLOAD="${PEFY_DEVSWARM_KEEP_DOWNLOAD:-1}"
 EVIDENCE_DIR="${PEFY_DEVSWARM_EVIDENCE_DIR:-$HOME/DevSwarm-PEFY-Evidence}"
 
 fail() { printf '[PEFY-DEVSWARM][FAIL] %s\n' "$*" >&2; exit "${2:-1}"; }
@@ -50,8 +50,6 @@ if [[ -n "$EXPECTED_SHA256" && "$sha" != "$EXPECTED_SHA256" ]]; then
   fail "Installer SHA-256 mismatch" 20
 fi
 
-# Validate the signed disk image with the platform security service. A local
-# hash alone is not publisher-authenticity evidence.
 spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg" \
   > "$EVIDENCE_DIR/dmg-spctl.txt" 2>&1 || {
     cat "$EVIDENCE_DIR/dmg-spctl.txt" >&2
@@ -79,9 +77,17 @@ version="$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.pl
 [[ "$version" == "$EXPECTED_VERSION" ]] || fail "Unexpected DevSwarm version: got $version, expected $EXPECTED_VERSION" 26
 
 team_id="$(sed -n 's/^TeamIdentifier=//p' "$EVIDENCE_DIR/codesign-details.txt" | head -n 1)"
-printf 'version=%s\nteam_id=%s\n' "$version" "$team_id" >> "$EVIDENCE_DIR/installer.env"
+[[ -n "$team_id" ]] || fail "DevSwarm signing TeamIdentifier could not be captured" 27
+printf 'version=%s\nteam_id=%s\nrollback_artifact=DevSwarm.dmg\n' "$version" "$team_id" >> "$EVIDENCE_DIR/installer.env"
 if [[ -n "$EXPECTED_TEAM_ID" && "$team_id" != "$EXPECTED_TEAM_ID" ]]; then
-  fail "Unexpected Apple signing TeamIdentifier: got '$team_id', expected '$EXPECTED_TEAM_ID'" 27
+  fail "Unexpected Apple signing TeamIdentifier: got '$team_id', expected '$EXPECTED_TEAM_ID'" 28
+fi
+
+# Retain the exact verified installer before application launch so rollback is deterministic.
+if [[ "$KEEP_DOWNLOAD" == "1" ]]; then
+  cp "$dmg" "$EVIDENCE_DIR/DevSwarm.dmg"
+  retained_sha="$(shasum -a 256 "$EVIDENCE_DIR/DevSwarm.dmg" | awk '{print $1}')"
+  [[ "$retained_sha" == "$sha" ]] || fail "Retained rollback installer hash mismatch" 29
 fi
 
 mkdir -p "$INSTALL_DIR"
@@ -89,14 +95,14 @@ target="$INSTALL_DIR/DevSwarm.app"
 if [[ -e "$target" ]]; then
   installed_version="$(plutil -extract CFBundleShortVersionString raw "$target/Contents/Info.plist" 2>/dev/null || true)"
   log "Replacing existing DevSwarm installation (version=${installed_version:-unknown})"
-  rm -rf "$target" 2>/dev/null || fail "Cannot replace $target; re-run with appropriate local administrator rights" 28
+  rm -rf "$target" 2>/dev/null || fail "Cannot replace $target; re-run with appropriate local administrator rights" 30
 fi
 
-ditto "$app" "$target" || fail "Failed to copy DevSwarm.app into $INSTALL_DIR" 29
+ditto "$app" "$target" || fail "Failed to copy DevSwarm.app into $INSTALL_DIR" 31
 codesign --verify --deep --strict --verbose=2 "$target" >/dev/null 2>&1 \
-  || fail "Installed DevSwarm signature verification failed after copy" 30
+  || fail "Installed DevSwarm signature verification failed after copy" 32
 spctl --assess --type execute --verbose=4 "$target" >/dev/null 2>&1 \
-  || fail "Installed DevSwarm failed Gatekeeper assessment" 31
+  || fail "Installed DevSwarm failed Gatekeeper assessment" 33
 
 log "DevSwarm $version installed and signature-verified at $target"
 log "Evidence directory: $EVIDENCE_DIR"
