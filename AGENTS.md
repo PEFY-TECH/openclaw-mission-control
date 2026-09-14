@@ -41,6 +41,8 @@
 ## PEFY Multi-AI Governance
 - This file is the canonical repository contract for humans and AI assistants. Tool-specific instruction files are adapters and must not contradict it.
 - Work on an isolated branch or Git worktree. Never edit or push directly to `master` for implementation work.
+- A Git worktree is a source-control/workflow isolation mechanism, not automatically an OS security boundary. Use a container, VM, sandbox, restricted service account or equivalent confinement when the task/agent risk requires filesystem or process isolation.
+- Do not auto-copy `.env`, credentials, key material, production dumps, private evidence or other secrets into AI workspaces. Prefer sanitized examples and short-lived, least-privilege credentials when access is genuinely required.
 - Mission Control remains the governance/control plane. DevSwarm, ClawTeam, OpenClaw, IDE agents, CLI agents and external runtimes are subordinate execution adapters.
 - Prefer the smallest reversible change that satisfies the requirement. Preserve public contracts unless a migration is explicitly required and covered by tests/migration evidence.
 - Never weaken authentication, authorization, tenant isolation, execution allowlists, readiness, auditability, supply-chain gates or rollback controls to make a task pass.
