@@ -11,6 +11,7 @@ on:
       - ".cursor/rules/**"
       - "config/pefy-code-modernization.yaml"
       - "docs/pefy-devswarm-code-modernization.md"
+      - "docs/pefy-devswarm-installer-verification.md"
       - "scripts/pefy-modernization-preflight.sh"
       - ".github/workflows/pefy-code-modernization.yml"
   push:
@@ -23,6 +24,7 @@ on:
       - ".cursor/rules/**"
       - "config/pefy-code-modernization.yaml"
       - "docs/pefy-devswarm-code-modernization.md"
+      - "docs/pefy-devswarm-installer-verification.md"
       - "scripts/pefy-modernization-preflight.sh"
       - ".github/workflows/pefy-code-modernization.yml"
 
@@ -49,6 +51,7 @@ jobs:
             .cursor/rules/pefy-engineering.mdc
             config/pefy-code-modernization.yaml
             docs/pefy-devswarm-code-modernization.md
+            docs/pefy-devswarm-installer-verification.md
             scripts/pefy-modernization-preflight.sh
           )
           for file in "${required[@]}"; do
@@ -64,6 +67,19 @@ jobs:
           grep -q 'AGENTS.md' .github/copilot-instructions.md
           grep -q 'AGENTS.md' .cursor/rules/pefy-engineering.mdc
           grep -q 'canonical: AGENTS.md' config/pefy-code-modernization.yaml
+
+      - name: Validate DevSwarm pinned provenance policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'evaluation_baseline: v2.5.0' config/pefy-code-modernization.yaml
+          grep -q 'distribution: official-devswarm-installer-only' config/pefy-code-modernization.yaml
+          grep -q 'downloads.devswarm.ai/darwin/arm64/DevSwarm.dmg' docs/pefy-devswarm-installer-verification.md
+          grep -q 'downloads.devswarm.ai/win32/x64/DevSwarm.exe' docs/pefy-devswarm-installer-verification.md
+          grep -q 'Get-AuthenticodeSignature' docs/pefy-devswarm-installer-verification.md
+          grep -q 'codesign --verify' docs/pefy-devswarm-installer-verification.md
+          grep -q 'spctl --assess' docs/pefy-devswarm-installer-verification.md
+          grep -q 'does not establish publisher authenticity' docs/pefy-devswarm-installer-verification.md
 
       - name: Validate shell syntax
         run: bash -n scripts/pefy-modernization-preflight.sh
