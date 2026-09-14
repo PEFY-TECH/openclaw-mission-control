@@ -12,7 +12,11 @@ execution_adapters:
     type: external-proprietary-ade
     status: optional-workstation-adapter
     source: https://devswarm.ai/
+    release_source: https://github.com/devswarm-ai/devswarm/releases/tag/v2.5.0
+    evaluation_baseline: v2.5.0
+    release_published: 2026-09-08
     license_mode: proprietary
+    distribution: official-devswarm-installer-only
     data_model: local-first
     isolation: git-worktree-per-workspace
     activation_requires:
