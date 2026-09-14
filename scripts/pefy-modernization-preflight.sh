@@ -2,15 +2,15 @@
 set -euo pipefail
 
 # PEFY provider-neutral preflight for DevSwarm and code-modernization workspaces.
-# This script is intentionally non-destructive: it validates prerequisites and
-# prints actionable state; it does not install proprietary software or mutate
-# credentials, agent configuration, Git remotes, branches, or production data.
+# This script is intentionally non-destructive. It validates prerequisites and
+# policy evidence; it never mutates credentials, remotes, branches or production data.
 
 ROOT_DIR="${1:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 PEFY_REQUIRE_DEVSWARM="${PEFY_REQUIRE_DEVSWARM:-0}"
 PEFY_DEVSWARM_APP_PATH="${PEFY_DEVSWARM_APP_PATH:-}"
+PEFY_DEVSWARM_EVIDENCE_DIR="${PEFY_DEVSWARM_EVIDENCE_DIR:-$HOME/DevSwarm-PEFY-Evidence}"
 PEFY_REQUIRE_CONTAINER_TOOLING="${PEFY_REQUIRE_CONTAINER_TOOLING:-0}"
-PEFY_AI_COMMANDS="${PEFY_AI_COMMANDS:-claude,codex,gemini,copilot,aider,goose,opencode,amp,qwen}"
+PEFY_AI_COMMANDS="${PEFY_AI_COMMANDS:-claude,codex,gemini,copilot,cursor,aider,goose,opencode,amp,qwen}"
 
 failures=0
 warnings=0
@@ -36,6 +36,30 @@ optional_command() {
   else
     warn "optional command missing: ${command_name}"
   fi
+}
+
+is_catalogued_assistant() {
+  case "$1" in
+    claude|codex|gemini|copilot|cursor|aider|goose|opencode|amp|qwen) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+probe_catalogued_assistant() {
+  local command_name="$1"
+  if ! is_catalogued_assistant "$command_name"; then
+    warn "unregistered assistant command ignored for activation: ${command_name}; add it through reviewed catalogue qualification first"
+    return 1
+  fi
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    return 1
+  fi
+  if "$command_name" --version >/dev/null 2>&1; then
+    pass "catalogued AI assistant health probe passed: ${command_name} --version"
+    return 0
+  fi
+  warn "assistant executable exists but health/version probe failed: ${command_name}"
+  return 1
 }
 
 printf 'PEFY Code Modernization / DevSwarm Preflight\n'
@@ -67,29 +91,26 @@ for policy_file in \
   fi
 done
 
-# DevSwarm requires at least one supported assistant. The product performs its
-# own discovery; this local probe only gives operators early visibility. Add
-# future/custom binaries with PEFY_AI_COMMANDS=cmd1,cmd2,... without changing code.
+# Only reviewed/catalogued assistants may satisfy the activation requirement.
+# PEFY_AI_COMMANDS can narrow the checked set, but arbitrary names do not become trusted.
 IFS=',' read -r -a ai_commands <<< "$PEFY_AI_COMMANDS"
 for ai_command in "${ai_commands[@]}"; do
   ai_command="${ai_command//[[:space:]]/}"
   [ -n "$ai_command" ] || continue
-  if command -v "$ai_command" >/dev/null 2>&1; then
-    pass "AI assistant CLI detected: ${ai_command}"
+  if probe_catalogued_assistant "$ai_command"; then
     assistants_found=$((assistants_found + 1))
   fi
 done
 
 if [ "$assistants_found" -eq 0 ]; then
-  fail "no AI assistant CLI detected; install/configure at least one DevSwarm-supported assistant"
+  fail "no catalogued AI assistant passed a health/version probe; install/configure at least one reviewed DevSwarm-supported CLI"
 else
-  pass "assistant availability satisfied (${assistants_found} detected)"
+  pass "assistant availability satisfied (${assistants_found} verified)"
 fi
 
-# Do not guess DevSwarm's private application-data directory. The official
-# public documentation does not establish one canonical cross-platform path.
-# Require either an explicit operator-provided application path or a documented
-# native macOS install location that can be verified by the OS.
+# Do not guess private DevSwarm application-data locations or authentication state.
+# Installation evidence is platform-backed and must be accompanied by the installer
+# evidence pack produced before first launch.
 devswarm_detected_path=""
 if [ -n "$PEFY_DEVSWARM_APP_PATH" ]; then
   if [ -e "$PEFY_DEVSWARM_APP_PATH" ]; then
@@ -116,6 +137,31 @@ else
   fi
 fi
 
+if [ "$PEFY_REQUIRE_DEVSWARM" = "1" ]; then
+  installer_env="$PEFY_DEVSWARM_EVIDENCE_DIR/installer.env"
+  if [ ! -s "$installer_env" ]; then
+    fail "DevSwarm immutable installer evidence missing: $installer_env"
+  else
+    for key in sha256 retrieved_utc version; do
+      if grep -Eq "^${key}=.+" "$installer_env"; then
+        pass "DevSwarm installer evidence contains ${key}"
+      else
+        fail "DevSwarm installer evidence missing ${key}"
+      fi
+    done
+    if grep -Eq '^(team_id|signer_thumbprint)=.+' "$installer_env"; then
+      pass "DevSwarm signer identity evidence present"
+    else
+      fail "DevSwarm signer identity evidence missing"
+    fi
+    if [ -s "$PEFY_DEVSWARM_EVIDENCE_DIR/DevSwarm.dmg" ] || [ -s "$PEFY_DEVSWARM_EVIDENCE_DIR/DevSwarm.exe" ]; then
+      pass "DevSwarm rollback installer artifact retained"
+    else
+      fail "DevSwarm rollback installer artifact missing; retain the verified installer for deterministic rollback"
+    fi
+  fi
+fi
+
 optional_command make
 optional_command python3
 optional_command node
@@ -134,8 +180,6 @@ else
   optional_command docker
 fi
 
-# Guard the workspace contract. A dirty primary branch can accidentally leak
-# unrelated edits into a swarm worktree or review.
 current_branch="$(git -C "$ROOT_DIR" branch --show-current 2>/dev/null || true)"
 if [ "$current_branch" = "master" ] || [ "$current_branch" = "main" ]; then
   warn "currently on primary branch '${current_branch}'; create an isolated worktree/branch before implementation"
