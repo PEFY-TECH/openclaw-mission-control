@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Awaitable, cast
+from typing import Awaitable, Callable, Protocol, cast
 
 import redis.asyncio as aioredis
 from sqlalchemy import text
@@ -16,6 +16,14 @@ from app.db.session import async_engine
 
 logger = get_logger(__name__)
 READINESS_IO_TIMEOUT_SECONDS = 2.0
+
+
+class RedisReadinessClient(Protocol):
+    """Minimal typed Redis surface required by readiness probes."""
+
+    def ping(self) -> Awaitable[object]: ...
+
+    def aclose(self) -> Awaitable[None]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,10 +51,14 @@ async def _database_ready() -> bool:
 
 async def _redis_ready(url: str, dependency: str) -> bool:
     """Return whether one configured Redis dependency responds within the readiness deadline."""
-    client = aioredis.from_url(url)
+    redis_factory = cast(
+        Callable[[str], RedisReadinessClient],
+        aioredis.from_url,
+    )
+    client = redis_factory(url)
     try:
         async with asyncio.timeout(READINESS_IO_TIMEOUT_SECONDS):
-            pong = await cast(Awaitable[object], client.ping())
+            pong = await client.ping()
         return bool(pong)
     except TimeoutError:
         logger.warning("readiness.%s.timeout", dependency)
