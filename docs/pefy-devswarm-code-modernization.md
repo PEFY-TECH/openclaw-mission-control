@@ -4,199 +4,201 @@
 
 DevSwarm is integrated as an optional workstation-level AI Development Environment (ADE) for parallel, isolated coding work. It does not replace PEFY governance, Mission Control, ClawTeam, OpenClaw, CI, security qualification or release approval.
 
-The PEFY Code Modernization Fabric provides one provider-neutral contract for DevSwarm and other coding assistants. The same repository rules apply whether a task is executed by Codex, Claude Code, Gemini CLI, GitHub Copilot, Cursor, Aider, Goose, Amazon Q, Rovo, OpenCode or another supported assistant.
+The PEFY Code Modernization Fabric exposes one provider-neutral contract to Codex, Claude Code, Gemini CLI, GitHub Copilot, Cursor, Amazon Q, Rovo, Goose, Aider, Amp, Mistral Vibe, Qwen Code, OpenCode, Cline, Plandex, Droid and future assistants.
 
-## DevSwarm qualification decision
+## DevSwarm governance decision
 
-Official DevSwarm documentation states that the product is a proprietary desktop application. Its public GitHub repository is the landing page and issue tracker, not the application source. Therefore PEFY must not fork, vendor, rebrand or absorb the application. DevSwarm is used behind a PEFY-owned adapter and remains replaceable.
+Official DevSwarm is proprietary. Its public GitHub repository is a landing page/issue tracker and does not contain the application source. PEFY therefore does not fork, vendor, rebrand or absorb DevSwarm. It remains a replaceable workstation adapter behind PEFY-owned policy and Git boundaries.
 
-The PEFY evaluation baseline is **DevSwarm v2.5.0**. The official GitHub release was published on 2026-09-08 and identifies the original product release date as 2026-08-14. This baseline adds agent chat in the workspace editor, explicit chat support for Claude/GitHub Copilot/OpenAI Codex, VS Code theme integration, improved first-run/workspace creation and Windows reliability fixes. Re-evaluate provenance, release notes and compatibility before moving to a later version; do not auto-upgrade solely because a newer release exists.
+PEFY evaluation baseline: **DevSwarm v2.5.0**. The official GitHub release was published on 2026-09-08 and identifies the original product release date as 2026-08-14. Do not auto-upgrade simply because a newer version exists; repeat provenance, signature, compatibility and rollback review first.
 
-DevSwarm's useful capabilities for this architecture are:
+Useful DevSwarm capabilities include isolated Git worktrees/branches, parallel assistants, independent ports, Review Mode, GitHub/Jira integrations, multiple assistants in one workspace and HiveControl-style orchestration.
 
-- isolated Git worktree per workspace;
-- parallel AI assistants on independent branches;
-- unique port assignments per workspace;
-- GitHub/Jira integrations;
-- Review Mode for branch diffs;
-- multiple assistants in the same workspace;
-- HiveControl for AI-directed workspace orchestration;
-- local-first code handling with user-owned assistant credentials.
+A Git worktree is **not** an OS security boundary. Sensitive work may additionally require a container, VM, sandbox, restricted account or ephemeral credentials. Never auto-copy `.env`, API keys, private keys, production dumps or private evidence into AI workspaces.
 
 ## Supported workstation model
 
-DevSwarm currently targets macOS and Windows, with WSL repository support on Windows. Git must be available in `PATH`, and at least one supported CLI coding assistant must be installed. The application is installed from the official DevSwarm download page and requires user sign-in. The public GitHub release does not provide the proprietary application binaries as release assets, so the official DevSwarm distribution channel remains the installation source.
+DevSwarm currently targets macOS and Windows, including WSL repository workflows on Windows. Git must be available and at least one CLI coding assistant must be installed. DevSwarm sign-in is interactive; PEFY scripts never collect or automate the user's DevSwarm/GitHub/AI credentials.
 
-### macOS prerequisite example
+## Verified installation
 
-```bash
-# Verify prerequisites
-xcode-select -p || xcode-select --install
-git --version
+### macOS ARM64
 
-# Optional Homebrew Git if your workstation policy permits Homebrew
-brew install git
-
-# Open the official installer page
-open https://devswarm.ai/download
-```
-
-After installation and first launch:
+Run the PEFY installer from the repository:
 
 ```bash
 cd /path/to/openclaw-mission-control
-bash scripts/pefy-modernization-preflight.sh
+bash scripts/install-devswarm-macos.sh
 ```
 
-To require evidence that DevSwarm has been initialized for the current user:
+Default baseline parameters:
 
 ```bash
-PEFY_REQUIRE_DEVSWARM=1 bash scripts/pefy-modernization-preflight.sh
+PEFY_DEVSWARM_EXPECTED_VERSION=2.5.0
+PEFY_DEVSWARM_URL='https://downloads.devswarm.ai/darwin/arm64/DevSwarm.dmg'
+PEFY_DEVSWARM_INSTALL_DIR='/Applications'
+PEFY_DEVSWARM_LAUNCH=0
+PEFY_DEVSWARM_KEEP_DOWNLOAD=0
+PEFY_DEVSWARM_EVIDENCE_DIR="$HOME/DevSwarm-PEFY-Evidence"
 ```
 
-### Windows 11 / PowerShell prerequisite example
+Optional stronger pinning after PEFY has approved a concrete installer/signing identity:
+
+```bash
+PEFY_DEVSWARM_EXPECTED_SHA256='<approved-installer-sha256>' \
+PEFY_DEVSWARM_EXPECTED_TEAM_ID='<approved-apple-team-id>' \
+PEFY_DEVSWARM_LAUNCH=1 \
+  bash scripts/install-devswarm-macos.sh
+```
+
+The installer validates HTTPS retrieval, local SHA-256, Gatekeeper assessment, application code signature and the expected DevSwarm version. It never disables Gatekeeper.
+
+### Windows 11 x64
+
+From PowerShell in the repository:
 
 ```powershell
-# Git
-winget install --id Git.Git -e
-
-git --version
-
-# Optional WSL if your repositories are hosted in Linux filesystems
-wsl --install -d Ubuntu
-wsl --status
-
-# Open the official installer page
-Start-Process 'https://devswarm.ai/download'
+.\scripts\install-devswarm-windows.ps1
 ```
 
-For a WSL-hosted repository, run the PEFY preflight inside the distribution:
+Default/optional environment parameters:
+
+```powershell
+$env:PEFY_DEVSWARM_EXPECTED_VERSION = '2.5.0'
+$env:PEFY_DEVSWARM_URL = 'https://downloads.devswarm.ai/win32/x64/DevSwarm.exe'
+$env:PEFY_DEVSWARM_LAUNCH = '0'
+$env:PEFY_DEVSWARM_KEEP_DOWNLOAD = '0'
+$env:PEFY_DEVSWARM_EVIDENCE_DIR = "$HOME\DevSwarm-PEFY-Evidence"
+
+# Optional stronger pinning after approval:
+$env:PEFY_DEVSWARM_EXPECTED_SHA256 = '<approved-installer-sha256>'
+$env:PEFY_DEVSWARM_EXPECTED_SIGNER_THUMBPRINT = '<approved-signing-certificate-thumbprint>'
+
+.\scripts\install-devswarm-windows.ps1
+```
+
+The PowerShell installer checks Windows 11/x64, SHA-256, Authenticode validity, signer information and expected application version before starting the installer. It never disables SmartScreen or accepts an invalid signature.
+
+See `docs/pefy-devswarm-installer-verification.md` for the evidence model and upgrade procedure.
+
+## Activation and repository onboarding
+
+Installation is followed by an explicit, human-controlled activation sequence:
+
+1. Launch the signed DevSwarm application.
+2. Sign in with the approved Google or GitHub identity.
+3. Review OAuth permissions before authorizing GitHub/Jira or other integrations.
+4. Add or clone the repository.
+5. Set the correct source/default branch (`master` for Mission Control unless intentionally changed).
+6. Confirm the source working tree is clean.
+7. Confirm at least one supported assistant is installed and authenticated through its own provider mechanism.
+8. Run the PEFY preflight.
+9. Create implementation workspaces on feature branches/worktrees, never directly on the primary branch.
+10. Review diffs and CI before merge.
+
+### Native macOS preflight
+
+The preflight can detect `/Applications/DevSwarm.app` automatically:
 
 ```bash
 cd /path/to/openclaw-mission-control
-bash scripts/pefy-modernization-preflight.sh
+PEFY_REQUIRE_DEVSWARM=1 \
+  bash scripts/pefy-modernization-preflight.sh
 ```
 
-Keep repositories in their native environment where practical; cross-boundary Windows/WSL filesystem access can reduce performance.
+### Explicit application evidence
 
-## Repository onboarding in DevSwarm
-
-1. Install DevSwarm v2.5.0 from the official distribution for the initial PEFY baseline (or use a later version only after a documented re-evaluation).
-2. Launch DevSwarm and sign in with the approved Google or GitHub identity.
-3. Connect GitHub through DevSwarm OAuth only after reviewing requested permissions.
-4. Add or clone the repository.
-5. Set the correct source/default branch (`master` for Mission Control unless the repository is intentionally rebaselined).
-6. Confirm the primary workspace is clean.
-7. Run `scripts/pefy-modernization-preflight.sh`.
-8. Confirm at least one assistant is detected.
-9. Create implementation workspaces from a feature branch, PR or ticket; do not use the primary branch as an implementation workspace.
-10. Review diffs and CI before merge.
-
-## Multi-AI instruction adapters
-
-The repository contains a canonical contract plus discovery adapters:
-
-- `AGENTS.md` — canonical provider-neutral contract.
-- `CLAUDE.md` — Claude Code adapter.
-- `GEMINI.md` — Gemini CLI adapter.
-- `.github/copilot-instructions.md` — GitHub Copilot adapter.
-- `.cursor/rules/pefy-engineering.mdc` — Cursor project rule.
-
-Assistants that understand `AGENTS.md` use it directly. Other tools receive an adapter that points back to the same policy. Provider-specific files must not weaken the canonical contract.
-
-## DevSwarm execution patterns
-
-### Parallel implementation pattern
-
-Use separate workspaces for independent slices, for example:
-
-- Workspace A — backend behavior;
-- Workspace B — frontend/UI;
-- Workspace C — tests and negative paths;
-- Workspace D — documentation/migration notes;
-- Workspace E — independent review/security challenge.
-
-Merge only after each slice is rebased/reconciled against the current source branch and the combined result passes repository CI.
-
-### Same-task comparative pattern
-
-For difficult refactors, give the same bounded task to two different assistants in separate workspaces. Compare diffs, tests, complexity, security and maintainability. Select or synthesize the best evidence-backed implementation; never merge both blindly.
-
-### HiveControl pattern
-
-Inside a DevSwarm workspace, a supported assistant can be asked to orchestrate parallel child workspaces. Use a bounded instruction such as:
-
-```text
-Hey DevSwarm, plan this change into independently testable workstreams. Create only the minimum parallel workspaces required. Every child must follow AGENTS.md, remain on an isolated branch, run its relevant tests, and return a concise diff/evidence summary. Do not merge. Escalate security-sensitive, destructive, credential, migration, or production actions for human/PEFY approval.
-```
-
-HiveControl is an execution mechanism, not a release authority.
-
-## Code modernization pipeline
-
-Every modernization task follows this sequence:
-
-1. Discovery — identify language/runtime/framework/toolchain and current versions.
-2. Inventory — dependency graph, APIs, generated code, migrations, plugins, deployment/runtime surfaces.
-3. Provenance/licence — verify canonical source, version/tag/SHA, SPDX/licence obligations and notices.
-4. Baseline — tests, build, lint/typecheck, coverage, current vulnerabilities, performance/reliability where relevant.
-5. Classify — dependency remediation, runtime/framework upgrade, API migration, architecture refactor, security hardening, observability, test or DX modernization.
-6. Plan — incremental/reversible slices, compatibility constraints and rollback.
-7. Implement in isolated worktree(s).
-8. Security — SAST/SCA/secrets/SBOM as applicable; prove negative paths for sensitive controls.
-9. Validate — targeted tests then full CI/build/E2E/installer gates as applicable.
-10. Compare — before/after behavior, risk, performance and operational impact.
-11. Review — independent human/agent review and finding closure.
-12. PR — immutable candidate SHA and evidence.
-13. Runtime qualification — real host, dependencies, health/readiness, allowed/denied actions, logs.
-14. Rollback/restore proof.
-15. Promotion — only after objective gates pass.
-
-## Security toolchain
-
-The fabric supports security tools as replaceable adapters. Do not mass-install them on every workstation. Select tools by language/risk, verify provenance and pin versions in the environment that owns the scan.
-
-Recommended capability classes include:
-
-- SAST: Codex Security, Semgrep, CodeQL;
-- SCA/advisories: package-manager audit, OSV-Scanner, Grype/Trivy;
-- SBOM: Syft or equivalent CycloneDX/SPDX generator;
-- secrets: Gitleaks or equivalent;
-- dependency automation: Dependabot/Renovate behind review gates;
-- large-scale source migration: OpenRewrite or language-native codemods;
-- current library documentation: Context7;
-- source/PR/CI evidence: GitHub.
-
-High/critical runtime vulnerabilities are promotion blockers unless an explicit, time-bounded, approved risk exception exists with compensating controls.
-
-## Codex Security plugin
-
-Codex Security is a useful optional ChatGPT security adapter. Installation/connection occurs through the ChatGPT plugin UI and requires user action. It must remain subordinate to the PEFY security fabric and does not replace repository CI, source-level scanners, SBOM/provenance or runtime verification.
-
-## Useful preflight parameters
+For a nonstandard installation location, Windows Git-Bash environment, WSL or another control shell, provide the verified application path explicitly:
 
 ```bash
-# Add or replace assistant binary names without editing the script
+PEFY_REQUIRE_DEVSWARM=1 \
+PEFY_DEVSWARM_APP_PATH='/verified/path/to/DevSwarm-or-DevSwarm.app' \
+  bash scripts/pefy-modernization-preflight.sh /path/to/repository
+```
+
+PEFY intentionally does **not** infer activation from an undocumented `~/.devswarm` or other guessed private data directory.
+
+### Additional preflight parameters
+
+```bash
+# Override/extend assistant binary discovery without editing the script.
 PEFY_AI_COMMANDS='claude,codex,gemini,copilot,aider,goose,opencode,custom-agent' \
   bash scripts/pefy-modernization-preflight.sh
 
-# Require DevSwarm initialization evidence
-PEFY_REQUIRE_DEVSWARM=1 \
-  bash scripts/pefy-modernization-preflight.sh
-
-# Require Docker + Compose in addition to the base toolchain
+# Require Docker and Compose for workloads that need container isolation.
 PEFY_REQUIRE_CONTAINER_TOOLING=1 \
   bash scripts/pefy-modernization-preflight.sh
 
-# Combine requirements
+# Combine all required evidence.
 PEFY_REQUIRE_DEVSWARM=1 \
+PEFY_DEVSWARM_APP_PATH='/verified/path/to/DevSwarm' \
 PEFY_REQUIRE_CONTAINER_TOOLING=1 \
 PEFY_AI_COMMANDS='claude,codex,gemini,copilot' \
   bash scripts/pefy-modernization-preflight.sh /path/to/repository
 ```
 
-Exit code `0` means required checks passed; exit code `2` means at least one required precondition failed. Warnings do not by themselves qualify or disqualify a production release.
+Exit code `0` means required preconditions passed; exit code `2` means one or more required preconditions failed. Warnings are informational and do not constitute release qualification.
+
+## Multi-AI instruction adapters
+
+The repository contains one canonical contract plus discovery adapters:
+
+- `AGENTS.md` — canonical provider-neutral contract;
+- `CLAUDE.md` — Claude Code adapter;
+- `GEMINI.md` — Gemini CLI adapter;
+- `.github/copilot-instructions.md` — GitHub Copilot adapter;
+- `.cursor/rules/pefy-engineering.mdc` — Cursor project rule.
+
+Provider-specific files may add discovery syntax but may never create a weaker policy path than `AGENTS.md`.
+
+## DevSwarm execution patterns
+
+### Parallel slices
+
+Use independent workspaces for separable work, for example backend, frontend, tests/negative paths, documentation/migrations and independent security review. Reconcile branches before merge and run the combined CI.
+
+### Comparative implementation
+
+For a difficult refactor, assign the same bounded task to two different assistants in separate workspaces. Compare correctness, tests, complexity, security and maintainability, then select or synthesize the best evidence-backed implementation. Never merge both blindly.
+
+### HiveControl-style orchestration
+
+Use a bounded orchestration instruction such as:
+
+```text
+Hey DevSwarm, split this change into the minimum independently testable workstreams. Every child workspace must follow AGENTS.md, remain on an isolated branch, run its relevant tests and return a concise diff/evidence summary. Do not merge. Escalate destructive, credential, migration, security-sensitive or production actions for PEFY/human approval.
+```
+
+Workspace orchestration is an execution mechanism, not a release authority.
+
+## Code modernization pipeline
+
+Every modernization task follows the governed sequence:
+
+1. discovery of language/runtime/framework/toolchain;
+2. inventory of dependencies, APIs, generated code, migrations, plugins and deployment surfaces;
+3. canonical provenance and licence verification;
+4. baseline tests/build/lint/typecheck/coverage/vulnerability evidence;
+5. change classification and reversible migration plan;
+6. isolated implementation;
+7. SAST/SCA/secrets/SBOM controls as applicable;
+8. unit/integration/build/E2E and negative-path validation;
+9. before/after performance/reliability evidence where relevant;
+10. independent review and finding closure;
+11. PR with immutable candidate SHA;
+12. CI and supply-chain gates;
+13. real-host runtime qualification where applicable;
+14. rollback/restore proof;
+15. controlled promotion.
+
+Modernization is evidence-driven, not version-chasing.
+
+## Security toolchain
+
+Use tools as replaceable adapters selected by project risk; do not mass-install them merely to increase tool count. Capability classes include Codex Security/Semgrep/CodeQL for SAST, package-manager audit/OSV/Grype/Trivy for SCA, Syft/CycloneDX/SPDX for SBOM, Gitleaks for secrets, Dependabot/Renovate for reviewed dependency automation, and OpenRewrite/language-native codemods for large migrations.
+
+Codex Security is an optional ChatGPT plugin. Installation requires the user's plugin-UI action and remains subordinate to PEFY security, CI, provenance and runtime evidence.
 
 ## Production rule
 
-Installation is never equivalent to production qualification. A DevSwarm workstation may be operational while OpenClaw, ClawTeam or Mission Control runtime qualification is still blocked. The AI Project Gallery and release evidence must preserve those separate states.
+**Installation is never production qualification.** A signed and functioning DevSwarm workstation can be operational while Mission Control, ClawTeam or OpenClaw remains blocked at a separate code/runtime/live-production gate. Those assurance states must remain distinct.
