@@ -1,0 +1,136 @@
+version: 1
+name: PEFY Code Modernization Fabric
+mode: governed-provider-neutral
+
+control_plane:
+  repository: PEFY-TECH/openclaw-mission-control
+  policy: AGENTS.md
+  promotion: fail-closed
+
+execution_adapters:
+  devswarm:
+    type: external-proprietary-ade
+    status: optional-workstation-adapter
+    source: https://devswarm.ai/
+    license_mode: proprietary
+    data_model: local-first
+    isolation: git-worktree-per-workspace
+    activation_requires:
+      - supported macOS or Windows workstation
+      - Git in PATH
+      - at least one supported AI assistant CLI
+      - operator sign-in to DevSwarm
+      - repository added with correct default branch
+  clawteam:
+    type: pefy-multi-agent-runtime
+    status: code-gate-pending
+  openclaw:
+    type: pefy-default-agent-runtime
+    status: rebaseline-blocked
+
+instruction_adapters:
+  canonical: AGENTS.md
+  claude_code: CLAUDE.md
+  gemini_cli: GEMINI.md
+  github_copilot: .github/copilot-instructions.md
+  cursor: .cursor/rules/pefy-engineering.mdc
+  generic_cli_agent: AGENTS.md
+
+assistant_policy:
+  detection: runtime-discovery
+  required_count_minimum: 1
+  known_families:
+    - OpenAI Codex
+    - Claude Code
+    - Gemini CLI
+    - GitHub Copilot
+    - Cursor CLI
+    - Amazon Q
+    - Atlassian Rovo
+    - Goose
+    - Aider
+    - Amp
+    - Mistral Vibe
+    - Qwen Code
+    - OpenCode
+    - Cline
+    - Plandex
+    - Droid
+  future_assistants: allowed-behind-same-policy
+
+modernization_pipeline:
+  - discovery
+  - inventory
+  - provenance-and-license
+  - architecture-impact
+  - sbom-and-dependency-analysis
+  - vulnerability-and-secret-analysis
+  - test-baseline
+  - migration-or-refactor
+  - static-analysis
+  - unit-and-integration-tests
+  - build
+  - e2e-when-applicable
+  - performance-and-reliability-evidence
+  - security-negative-paths
+  - review
+  - pull-request
+  - ci-gates
+  - rollback-proof
+  - promotion
+
+promotion_requirements:
+  code_qualified:
+    - immutable candidate SHA
+    - required CI green
+    - review findings resolved
+    - runtime high vulnerabilities equal 0
+    - runtime critical vulnerabilities equal 0
+    - reproducible lockfiles where applicable
+    - no secret leakage in evidence
+  runtime_qualified:
+    - code_qualified
+    - real-host health and readiness
+    - required agent/runtime connectivity
+    - allowed-action proof
+    - denied-or-approval-gated-action proof
+    - audit/log evidence
+    - rollback target
+  live_production_active:
+    - runtime_qualified
+    - production deployment identity
+    - backup verification
+    - restore or rollback drill evidence
+    - release acceptance record
+
+security_tools:
+  codex_security_plugin:
+    status: user-install-required
+    role: security scan and investigation
+  github:
+    status: connected
+    role: source, PR, CI and evidence
+  context7:
+    status: connected
+    role: current library documentation
+  additional_cli_tools:
+    policy: discover-verify-pin-before-adoption
+    examples:
+      - Semgrep
+      - CodeQL
+      - OSV-Scanner
+      - Syft
+      - Grype
+      - Trivy
+      - Gitleaks
+      - Renovate
+      - Dependabot
+      - OpenRewrite
+
+forbidden_shortcuts:
+  - unrestricted execution to bypass allowlists
+  - blind dependency upgrades
+  - blind upstream sync or rebase
+  - unreviewed auto-merge
+  - secrets in repository or evidence artifacts
+  - production qualification inferred from installation alone
