@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0.0",
+  "fabric": {
+    "id": "pefy-omni-ai-plugin-fabric",
+    "name": "PEFY ΩOMNI AI PLUGIN FABRIC™",
+    "owner": "PEFY-TECH",
+    "policy": "deny-by-default",
+    "activation_model": "evidence-bound",
+    "secret_policy": "environment-or-external-secret-store-only",
+    "portable_contracts": [
+      "openai-compatible",
+      "anthropic-compatible",
+      "google-gemini-compatible",
+      "mcp-stdio",
+      "mcp-http",
+      "openapi",
+      "cli",
+      "webhook",
+      "a2a",
+      "skill-md"
+    ]
+  },
+  "adapters": [
+    {
+      "id": "openai",
+      "kind": "model-provider",
+      "protocol": "openai-compatible",
+      "credential_groups": [["OPENAI_API_KEY"]],
+      "endpoint_env": "OPENAI_BASE_URL",
+      "default_endpoint": "https://api.openai.com/v1",
+      "probe": "none",
+      "risk": "external-model-provider",
+      "default_state": "registered"
+    },
+    {
+      "id": "anthropic",
+      "kind": "model-provider",
+      "protocol": "anthropic-compatible",
+      "credential_groups": [["ANTHROPIC_API_KEY"]],
+      "endpoint_env": "ANTHROPIC_BASE_URL",
+      "default_endpoint": "https://api.anthropic.com",
+      "probe": "none",
+      "risk": "external-model-provider",
+      "default_state": "registered"
+    },
+    {
+      "id": "google-gemini",
+      "kind": "model-provider",
+      "protocol": "google-gemini-compatible",
+      "credential_groups": [["GEMINI_API_KEY"], ["GOOGLE_API_KEY"]],
+      "endpoint_env": "GEMINI_BASE_URL",
+      "default_endpoint": "https://generativelanguage.googleapis.com",
+      "probe": "none",
+      "risk": "external-model-provider",
+      "default_state": "registered"
+    },
+    {
+      "id": "openrouter",
+      "kind": "model-router",
+      "protocol": "openai-compatible",
+      "credential_groups": [["OPENROUTER_API_KEY"]],
+      "endpoint_env": "OPENROUTER_BASE_URL",
+      "default_endpoint": "https://openrouter.ai/api/v1",
+      "probe": "none",
+      "risk": "external-model-router",
+      "default_state": "registered"
+    },
+    {
+      "id": "ollama",
+      "kind": "local-model-runtime",
+      "protocol": "ollama-http",
+      "credential_groups": [],
+      "endpoint_env": "OLLAMA_HOST",
+      "default_endpoint": "http://127.0.0.1:11434",
+      "health_path": "/api/tags",
+      "probe": "http-get",
+      "risk": "local-runtime",
+      "default_state": "registered"
+    },
+    {
+      "id": "generic-openai-compatible",
+      "kind": "model-provider-template",
+      "protocol": "openai-compatible",
+      "required_env": ["PEFY_GENERIC_OPENAI_BASE_URL"],
+      "credential_groups": [["PEFY_GENERIC_OPENAI_API_KEY"], []],
+      "endpoint_env": "PEFY_GENERIC_OPENAI_BASE_URL",
+      "probe": "none",
+      "risk": "external-or-local-provider",
+      "default_state": "registered"
+    },
+    {
+      "id": "zai",
+      "kind": "model-provider",
+      "protocol": "runtime-native",
+      "credential_groups": [["ZAI_API_KEY"]],
+      "probe": "none",
+      "risk": "external-model-provider",
+      "default_state": "registered"
+    },
+    {
+      "id": "ai-gateway",
+      "kind": "model-router",
+      "protocol": "runtime-native",
+      "credential_groups": [["AI_GATEWAY_API_KEY"]],
+      "probe": "none",
+      "risk": "external-model-router",
+      "default_state": "registered"
+    },
+    {
+      "id": "minimax",
+      "kind": "model-provider",
+      "protocol": "runtime-native",
+      "credential_groups": [["MINIMAX_API_KEY"]],
+      "probe": "none",
+      "risk": "external-model-provider",
+      "default_state": "registered"
+    },
+    {
+      "id": "synthetic",
+      "kind": "model-provider",
+      "protocol": "runtime-native",
+      "credential_groups": [["SYNTHETIC_API_KEY"]],
+      "probe": "none",
+      "risk": "external-model-provider",
+      "default_state": "registered"
+    }
+  ],
+  "protocol_templates": [
+    {
+      "id": "mcp-stdio",
+      "kind": "tool-protocol",
+      "required_instance_fields": ["command", "args", "source", "version", "license"],
+      "secret_transport": "environment",
+      "execution": "subprocess-sandbox-required"
+    },
+    {
+      "id": "mcp-http",
+      "kind": "tool-protocol",
+      "required_instance_fields": ["endpoint", "source", "version", "license"],
+      "secret_transport": "header-via-secret-store",
+      "execution": "network-policy-required"
+    },
+    {
+      "id": "openapi",
+      "kind": "api-protocol",
+      "required_instance_fields": ["spec", "source", "version", "license"],
+      "secret_transport": "external-secret-store",
+      "execution": "allowlist-required"
+    },
+    {
+      "id": "cli",
+      "kind": "tool-protocol",
+      "required_instance_fields": ["executable", "version", "source", "license"],
+      "secret_transport": "environment",
+      "execution": "command-allowlist-required"
+    },
+    {
+      "id": "webhook",
+      "kind": "event-protocol",
+      "required_instance_fields": ["endpoint", "event_contract", "source"],
+      "secret_transport": "signed-request",
+      "execution": "network-policy-required"
+    },
+    {
+      "id": "a2a",
+      "kind": "agent-protocol",
+      "required_instance_fields": ["endpoint", "agent_card", "source", "version"],
+      "secret_transport": "external-secret-store",
+      "execution": "identity-and-scope-required"
+    },
+    {
+      "id": "skill-md",
+      "kind": "skill-contract",
+      "required_instance_fields": ["skill_path", "source", "version", "license"],
+      "secret_transport": "none",
+      "execution": "omega-esf-certification-required"
+    }
+  ],
+  "runtime_targets": [
+    {
+      "id": "openclaw",
+      "command": ["openclaw", "--version"],
+      "required": true,
+      "qualification": "scripts/pefy-runtime-rebaseline.sh"
+    },
+    {
+      "id": "clawteam",
+      "command": ["clawteam", "--version"],
+      "required": true,
+      "qualification": "scripts/verify-pefy-production.sh"
+    },
+    {
+      "id": "codex-cli",
+      "command": ["codex", "--version"],
+      "required": false,
+      "qualification": "external-adapter"
+    },
+    {
+      "id": "claude-code",
+      "command": ["claude", "--version"],
+      "required": false,
+      "qualification": "external-adapter"
+    },
+    {
+      "id": "gemini-cli",
+      "command": ["gemini", "--version"],
+      "required": false,
+      "qualification": "external-adapter"
+    },
+    {
+      "id": "opencode",
+      "command": ["opencode", "--version"],
+      "required": false,
+      "qualification": "external-adapter"
+    }
+  ],
+  "capability_packs": [
+    {
+      "id": "code-modernization",
+      "name": "PEFY Code Modernization Pack",
+      "portable": true,
+      "capabilities": [
+        "repository-analysis",
+        "dependency-modernization",
+        "codemod-planning",
+        "codemod-execution",
+        "test-generation",
+        "lint-format-repair",
+        "security-review",
+        "migration-planning",
+        "performance-regression-check",
+        "rollback-plan"
+      ],
+      "approval_required_for": [
+        "destructive-change",
+        "dependency-major-upgrade",
+        "security-policy-change",
+        "schema-migration",
+        "production-deploy",
+        "public-release"
+      ]
+    }
+  ]
+}
