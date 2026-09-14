@@ -8,6 +8,7 @@ set -euo pipefail
 
 ROOT_DIR="${1:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 PEFY_REQUIRE_DEVSWARM="${PEFY_REQUIRE_DEVSWARM:-0}"
+PEFY_DEVSWARM_APP_PATH="${PEFY_DEVSWARM_APP_PATH:-}"
 PEFY_REQUIRE_CONTAINER_TOOLING="${PEFY_REQUIRE_CONTAINER_TOOLING:-0}"
 PEFY_AI_COMMANDS="${PEFY_AI_COMMANDS:-claude,codex,gemini,copilot,aider,goose,opencode,amp,qwen}"
 
@@ -39,8 +40,10 @@ optional_command() {
 
 printf 'PEFY Code Modernization / DevSwarm Preflight\n'
 printf 'repository=%s\n' "$ROOT_DIR"
-printf 'os=%s\n' "$(uname -s 2>/dev/null || printf unknown)"
-printf 'arch=%s\n' "$(uname -m 2>/dev/null || printf unknown)"
+os_name="$(uname -s 2>/dev/null || printf unknown)"
+arch_name="$(uname -m 2>/dev/null || printf unknown)"
+printf 'os=%s\n' "$os_name"
+printf 'arch=%s\n' "$arch_name"
 
 require_command git
 require_command bash
@@ -83,13 +86,33 @@ else
   pass "assistant availability satisfied (${assistants_found} detected)"
 fi
 
-if [ -d "${HOME}/.devswarm" ]; then
-  pass "DevSwarm local data directory detected: ~/.devswarm"
+# Do not guess DevSwarm's private application-data directory. The official
+# public documentation does not establish one canonical cross-platform path.
+# Require either an explicit operator-provided application path or a documented
+# native macOS install location that can be verified by the OS.
+devswarm_detected_path=""
+if [ -n "$PEFY_DEVSWARM_APP_PATH" ]; then
+  if [ -e "$PEFY_DEVSWARM_APP_PATH" ]; then
+    devswarm_detected_path="$PEFY_DEVSWARM_APP_PATH"
+  else
+    fail "PEFY_DEVSWARM_APP_PATH does not exist: $PEFY_DEVSWARM_APP_PATH"
+  fi
+elif [ "$os_name" = "Darwin" ]; then
+  for candidate in "/Applications/DevSwarm.app" "$HOME/Applications/DevSwarm.app"; do
+    if [ -d "$candidate" ]; then
+      devswarm_detected_path="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -n "$devswarm_detected_path" ]; then
+  pass "DevSwarm application detected: $devswarm_detected_path"
 else
   if [ "$PEFY_REQUIRE_DEVSWARM" = "1" ]; then
-    fail "DevSwarm has not been initialized for this user (~/.devswarm absent)"
+    fail "DevSwarm application evidence unavailable; install the signed application or set PEFY_DEVSWARM_APP_PATH to its verified installed path"
   else
-    warn "DevSwarm not yet initialized for this user; install/launch the official desktop application when this adapter is required"
+    warn "DevSwarm application not verified in this environment; set PEFY_DEVSWARM_APP_PATH when workstation evidence is required"
   fi
 fi
 
@@ -102,7 +125,7 @@ optional_command age
 
 if [ "$PEFY_REQUIRE_CONTAINER_TOOLING" = "1" ]; then
   require_command docker
-  if docker compose version >/dev/null 2>&1; then
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     pass "Docker Compose available"
   else
     fail "Docker Compose unavailable"
