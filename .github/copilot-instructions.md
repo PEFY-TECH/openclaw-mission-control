@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+Use `AGENTS.md` in the repository root as the canonical provider-neutral engineering contract. The repository details below complement that contract and must not weaken it.
+
 ## Project Structure & Module Organization
 - `backend/`: FastAPI service. Main app code lives in `backend/app/` with API routes in `backend/app/api/`, data models in `backend/app/models/`, schemas in `backend/app/schemas/`, and service logic in `backend/app/services/`.
 - `backend/migrations/`: Alembic migrations (`backend/migrations/versions/` for generated revisions).
@@ -25,15 +27,20 @@
 - For intentionally unused destructured TS variables, prefix with `_` to satisfy lint config.
 
 ## Testing Guidelines
-- Backend: pytest via `make backend-test`; coverage policy via `make backend-coverage` (writes `backend/coverage.xml` and `backend/coverage.json`).
-- Frontend: vitest + Testing Library via `make frontend-test` (coverage in `frontend/coverage/`).
+- Backend: pytest via `make backend-test`; coverage policy via `make backend-coverage`.
+- Frontend: vitest + Testing Library via `make frontend-test`.
 - Add or update tests whenever behavior changes.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commits (seen in history), e.g. `feat: ...`, `fix: ...`, `docs: ...`, `test(core): ...`.
+- Follow Conventional Commits, e.g. `feat: ...`, `fix: ...`, `docs: ...`, `test(core): ...`.
 - Keep PRs focused and based on latest `master`.
-- Include: what changed, why, test evidence (`make check` or targeted commands), linked issue, and screenshots/logs when UI or operator workflow changes.
+- Include what changed, why, test evidence, linked issue, and screenshots/logs when UI or operator workflow changes.
 
-## Security & Configuration Tips
-- Never commit secrets. Copy from `.env.example` and keep real values in local `.env`.
-- Report vulnerabilities privately via GitHub security advisories, not public issues.
+## PEFY Multi-AI & Modernization Controls
+- Work on isolated branches/worktrees; do not implement directly on `master`.
+- Mission Control is the governance/control plane. DevSwarm, Copilot, OpenClaw/ClawTeam and other agents are execution adapters.
+- Never weaken authentication, authorization, tenant isolation, execution allowlists, readiness, auditability, supply-chain or rollback controls to make a change pass.
+- Never commit secrets, production response bodies, identities, customer data, backup archives or sensitive evidence.
+- For dependency/framework modernization, verify canonical provenance and licence, regenerate lockfiles reproducibly, review runtime vulnerabilities separately from dev-only findings, test compatibility and preserve rollback.
+- Run targeted checks first, then `make check` and any affected PEFY production/supply-chain workflows.
+- Do not merge or claim production qualification while required CI, review, runtime or deployment gates are incomplete.
