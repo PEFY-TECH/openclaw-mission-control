@@ -1,0 +1,95 @@
+name: PEFY Frontend Supply-Chain Gate
+
+on:
+  pull_request:
+    paths:
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/pefy-lock-candidate.yml"
+  push:
+    branches: [master]
+    paths:
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/pefy-lock-candidate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify package-lock reproducibility
+        run: |
+          set -euo pipefail
+          cp frontend/package-lock.json "$RUNNER_TEMP/package-lock.before.json"
+          cd frontend
+          npm install --package-lock-only --ignore-scripts
+          cmp --silent package-lock.json "$RUNNER_TEMP/package-lock.before.json" || {
+            echo "Committed package-lock.json is not reproducible from package.json"
+            git --no-pager diff -- package-lock.json || true
+            exit 1
+          }
+
+      - name: Audit production dependency graph
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pefy-frontend-supply-chain
+          cd frontend
+          npm audit --omit=dev --json > ../artifacts/pefy-frontend-supply-chain/npm-audit-production.json || true
+          cp package-lock.json ../artifacts/pefy-frontend-supply-chain/package-lock.json
+          cp package.json ../artifacts/pefy-frontend-supply-chain/package.json
+
+      - name: Enforce production severity threshold
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          audit = json.loads(Path("artifacts/pefy-frontend-supply-chain/npm-audit-production.json").read_text())
+          counts = audit.get("metadata", {}).get("vulnerabilities", {})
+          if not isinstance(counts, dict):
+              raise SystemExit("npm audit metadata missing; fail closed")
+          critical = int(counts.get("critical", 0) or 0)
+          high = int(counts.get("high", 0) or 0)
+          moderate = int(counts.get("moderate", 0) or 0)
+          low = int(counts.get("low", 0) or 0)
+          print(f"Production frontend audit: critical={critical} high={high} moderate={moderate} low={low}")
+          if critical or high:
+              raise SystemExit(
+                  f"Frontend supply-chain gate failed: critical={critical}, high={high}"
+              )
+          PY
+
+      - name: Capture lock provenance
+        env:
+          PEFY_CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PEFY_TESTED_MERGE_OR_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "candidate_head_sha=${PEFY_CANDIDATE_HEAD_SHA}"
+            echo "tested_merge_or_commit_sha=${PEFY_TESTED_MERGE_OR_COMMIT_SHA}"
+            echo "node=$(node --version)"
+            echo "npm=$(npm --version)"
+            sha256sum frontend/package.json frontend/package-lock.json
+          } > artifacts/pefy-frontend-supply-chain/provenance.txt
+
+      - name: Upload frontend supply-chain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pefy-frontend-supply-chain-evidence
+          if-no-files-found: error
+          path: artifacts/pefy-frontend-supply-chain/**
