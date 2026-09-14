@@ -72,14 +72,41 @@ jobs:
           grep -q 'AGENTS.md' GEMINI.md
           grep -q 'AGENTS.md' .github/copilot-instructions.md
           grep -q 'AGENTS.md' .cursor/rules/pefy-engineering.mdc
-          grep -q 'canonical: AGENTS.md' config/pefy-code-modernization.yaml
 
-      - name: Validate DevSwarm pinned provenance policy
+      - name: Structurally validate fail-closed modernization policy
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'evaluation_baseline: v2.5.0' config/pefy-code-modernization.yaml
-          grep -q 'distribution: official-devswarm-installer-only' config/pefy-code-modernization.yaml
+          ruby -ryaml -e '
+            cfg = YAML.safe_load(File.read("config/pefy-code-modernization.yaml"), aliases: false)
+            abort "control_plane.promotion must be fail-closed" unless cfg.dig("control_plane", "promotion") == "fail-closed"
+            abort "scope must be account-wide-and-legacy-aware" unless cfg["scope"] == "account-wide-and-legacy-aware"
+            devswarm = cfg.dig("execution_adapters", "devswarm") || {}
+            abort "DevSwarm baseline must be v2.5.0" unless devswarm["evaluation_baseline"] == "v2.5.0"
+            abort "DevSwarm distribution must remain official-only" unless devswarm["distribution"] == "official-devswarm-installer-only"
+            provenance = devswarm["provenance"] || {}
+            %w[immutable_release_tag_required installer_sha256_capture_required platform_signature_validation_required signer_identity_capture_required retrieval_timestamp_required installer_evidence_before_launch_required rollback_installer_retention_required rollback_digest_required evidence_must_exclude_secrets].each do |key|
+              abort "DevSwarm provenance control disabled: #{key}" unless provenance[key] == true
+            end
+            assistant = cfg["assistant_policy"] || {}
+            abort "arbitrary executables must never satisfy assistant support" unless assistant["arbitrary_executable_counts_as_supported"] == false
+            abort "assistant catalogue changes must require review" unless assistant["catalogue_change_requires_review"] == true
+            legacy = cfg["legacy_policy"] || {}
+            abort "big-bang legacy rewrite must be forbidden" unless legacy["no_forced_big_bang_rewrite"] == true
+            required = cfg.dig("promotion_requirements", "code_qualified") || []
+            ["immutable candidate SHA", "required CI green", "review findings resolved", "runtime high vulnerabilities equal 0", "runtime critical vulnerabilities equal 0", "no secret leakage in evidence"].each do |item|
+              abort "missing code qualification requirement: #{item}" unless required.include?(item)
+            end
+            forbidden = cfg["forbidden_shortcuts"] || []
+            ["production qualification inferred from installation alone", "arbitrary executable treated as supported assistant without catalogue qualification", "big-bang legacy rewrite without compatibility and rollback evidence"].each do |item|
+              abort "missing forbidden shortcut: #{item}" unless forbidden.include?(item)
+            end
+          '
+
+      - name: Validate DevSwarm pinned provenance documentation
+        shell: bash
+        run: |
+          set -euo pipefail
           grep -q 'downloads.devswarm.ai/darwin/arm64/DevSwarm.dmg' docs/pefy-devswarm-installer-verification.md
           grep -q 'downloads.devswarm.ai/win32/x64/DevSwarm.exe' docs/pefy-devswarm-installer-verification.md
           grep -q 'Get-AuthenticodeSignature' docs/pefy-devswarm-installer-verification.md
@@ -95,14 +122,17 @@ jobs:
           bash -n scripts/pefy-modernization-preflight.sh
           bash -n scripts/install-devswarm-macos.sh
           grep -q 'PEFY_DEVSWARM_APP_PATH' scripts/pefy-modernization-preflight.sh
-          if grep -q 'HOME}/\.devswarm' scripts/pefy-modernization-preflight.sh; then
-            echo 'preflight must not infer DevSwarm initialization from an undocumented ~/.devswarm directory' >&2
-            exit 1
-          fi
-          grep -q 'EXPECTED_VERSION="${PEFY_DEVSWARM_EXPECTED_VERSION:-2.5.0}"' scripts/install-devswarm-macos.sh
+          grep -q 'PEFY_DEVSWARM_EVIDENCE_DIR' scripts/pefy-modernization-preflight.sh
+          grep -q 'catalogued AI assistant health probe passed' scripts/pefy-modernization-preflight.sh
+          grep -q 'PEFY_DEVSWARM_KEEP_DOWNLOAD:-1' scripts/install-devswarm-macos.sh
           grep -q 'codesign --verify' scripts/install-devswarm-macos.sh
           grep -q 'spctl --assess' scripts/install-devswarm-macos.sh
           grep -q 'Unexpected DevSwarm version' scripts/install-devswarm-macos.sh
+          grep -q 'rollback_artifact=DevSwarm.dmg' scripts/install-devswarm-macos.sh
+          if grep -q 'HOME}/\.devswarm' scripts/pefy-modernization-preflight.sh; then
+            echo 'preflight must not infer DevSwarm state from undocumented ~/.devswarm' >&2
+            exit 1
+          fi
 
       - name: Validate Windows installer syntax and fail-closed invariants
         shell: pwsh
@@ -123,73 +153,117 @@ jobs:
             'PEFY_DEVSWARM_EXPECTED_VERSION',
             '2.5.0',
             'Unexpected DevSwarm version',
-            'SignatureStatus]::Valid'
+            'SignatureStatus]::Valid',
+            "rollback_artifact=DevSwarm.exe"
           )) {
             if (-not $content.Contains($required)) {
               throw "Windows installer invariant missing: $required"
             }
           }
 
-      - name: Preflight succeeds with one discovered assistant
+      - name: Preflight succeeds with one catalogued healthy assistant
         shell: bash
         run: |
           set -euo pipefail
           test_bin="${RUNNER_TEMP}/pefy-test-bin"
           mkdir -p "$test_bin"
+          cat > "$test_bin/codex" <<'EOF'
+          #!/usr/bin/env sh
+          if [ "${1:-}" = "--version" ]; then
+            echo 'codex-test 1.0.0'
+            exit 0
+          fi
+          exit 1
+          EOF
+          chmod +x "$test_bin/codex"
+          PATH="$test_bin:$PATH" \
+            PEFY_AI_COMMANDS=codex \
+            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"
+
+      - name: Preflight rejects arbitrary executable as supported assistant
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_bin="${RUNNER_TEMP}/pefy-unregistered-bin"
+          mkdir -p "$test_bin"
           cat > "$test_bin/pefy-test-agent" <<'EOF'
           #!/usr/bin/env sh
+          echo 'fake 1.0'
           exit 0
           EOF
           chmod +x "$test_bin/pefy-test-agent"
-          PATH="$test_bin:$PATH" \
-            PEFY_AI_COMMANDS=pefy-test-agent \
-            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"
+          if PATH="$test_bin:$PATH" PEFY_AI_COMMANDS=pefy-test-agent \
+            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"; then
+            echo 'preflight unexpectedly trusted an unregistered arbitrary executable' >&2
+            exit 1
+          fi
+
+      - name: Preflight rejects unhealthy catalogued assistant
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_bin="${RUNNER_TEMP}/pefy-unhealthy-bin"
+          mkdir -p "$test_bin"
+          cat > "$test_bin/codex" <<'EOF'
+          #!/usr/bin/env sh
+          exit 42
+          EOF
+          chmod +x "$test_bin/codex"
+          if PATH="$test_bin:$PATH" PEFY_AI_COMMANDS=codex \
+            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"; then
+            echo 'preflight unexpectedly trusted an unhealthy assistant executable' >&2
+            exit 1
+          fi
 
       - name: Preflight fails closed when no assistant exists
         shell: bash
         run: |
           set -euo pipefail
-          if PEFY_AI_COMMANDS=pefy-definitely-missing-agent \
+          if PEFY_AI_COMMANDS=codex PATH="/usr/bin:/bin" \
             bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"; then
             echo "preflight unexpectedly passed without an assistant" >&2
             exit 1
           fi
 
-      - name: Explicit DevSwarm application evidence is enforced
+      - name: Explicit DevSwarm application and immutable evidence are enforced
         shell: bash
         run: |
           set -euo pipefail
           test_bin="${RUNNER_TEMP}/pefy-test-bin-devswarm"
           fake_home="${RUNNER_TEMP}/pefy-home"
           fake_app="${RUNNER_TEMP}/DevSwarm.test-app"
-          mkdir -p "$test_bin" "$fake_home"
-          cat > "$test_bin/pefy-test-agent" <<'EOF'
+          evidence="${RUNNER_TEMP}/devswarm-evidence"
+          mkdir -p "$test_bin" "$fake_home" "$evidence"
+          cat > "$test_bin/codex" <<'EOF'
           #!/usr/bin/env sh
-          exit 0
+          if [ "${1:-}" = "--version" ]; then echo 'codex-test 1.0.0'; exit 0; fi
+          exit 1
           EOF
-          chmod +x "$test_bin/pefy-test-agent"
+          chmod +x "$test_bin/codex"
+          : > "$fake_app"
 
           if HOME="$fake_home" PATH="$test_bin:$PATH" \
-            PEFY_AI_COMMANDS=pefy-test-agent \
+            PEFY_AI_COMMANDS=codex \
             PEFY_REQUIRE_DEVSWARM=1 \
-            PEFY_DEVSWARM_APP_PATH="${RUNNER_TEMP}/does-not-exist" \
+            PEFY_DEVSWARM_APP_PATH="$fake_app" \
+            PEFY_DEVSWARM_EVIDENCE_DIR="$evidence" \
             bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"; then
-            echo "preflight unexpectedly passed with missing DevSwarm application evidence" >&2
+            echo "preflight unexpectedly passed without immutable installer evidence" >&2
             exit 1
           fi
 
-          : > "$fake_app"
+          cat > "$evidence/installer.env" <<'EOF'
+          sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          retrieved_utc=2026-09-14T00:00:00Z
+          version=2.5.0
+          team_id=TESTTEAM
+          rollback_artifact=DevSwarm.dmg
+          EOF
+          : > "$evidence/DevSwarm.dmg"
+
           HOME="$fake_home" PATH="$test_bin:$PATH" \
-            PEFY_AI_COMMANDS=pefy-test-agent \
+            PEFY_AI_COMMANDS=codex \
             PEFY_REQUIRE_DEVSWARM=1 \
             PEFY_DEVSWARM_APP_PATH="$fake_app" \
+            PEFY_DEVSWARM_EVIDENCE_DIR="$evidence" \
             bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"
-
-      - name: Reject weakened promotion language
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -q 'promotion: fail-closed' config/pefy-code-modernization.yaml
-          grep -q 'runtime high vulnerabilities equal 0' config/pefy-code-modernization.yaml
-          grep -q 'runtime critical vulnerabilities equal 0' config/pefy-code-modernization.yaml
-          grep -q 'production qualification inferred from installation alone' config/pefy-code-modernization.yaml
