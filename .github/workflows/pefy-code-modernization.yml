@@ -79,7 +79,8 @@ jobs:
           grep -q 'Get-AuthenticodeSignature' docs/pefy-devswarm-installer-verification.md
           grep -q 'codesign --verify' docs/pefy-devswarm-installer-verification.md
           grep -q 'spctl --assess' docs/pefy-devswarm-installer-verification.md
-          grep -q 'does not establish publisher authenticity' docs/pefy-devswarm-installer-verification.md
+          grep -q 'publisher authenticity' docs/pefy-devswarm-installer-verification.md
+          grep -q 'independently published trusted checksum' docs/pefy-devswarm-installer-verification.md
 
       - name: Validate shell syntax
         run: bash -n scripts/pefy-modernization-preflight.sh
