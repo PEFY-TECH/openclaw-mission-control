@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "fabric": {
     "id": "pefy-omni-ai-plugin-fabric",
     "name": "PEFY ΩOMNI AI PLUGIN FABRIC™",
@@ -21,224 +21,79 @@
     ]
   },
   "adapters": [
+    {"id":"openai","kind":"model-provider","protocol":"openai-compatible","credential_groups":[["OPENAI_API_KEY"]],"endpoint_env":"OPENAI_BASE_URL","default_endpoint":"https://api.openai.com/v1","probe":"none","risk":"external-model-provider","default_state":"registered"},
+    {"id":"anthropic","kind":"model-provider","protocol":"anthropic-compatible","credential_groups":[["ANTHROPIC_API_KEY"]],"endpoint_env":"ANTHROPIC_BASE_URL","default_endpoint":"https://api.anthropic.com","probe":"none","risk":"external-model-provider","default_state":"registered"},
+    {"id":"google-gemini","kind":"model-provider","protocol":"google-gemini-compatible","credential_groups":[["GEMINI_API_KEY"],["GOOGLE_API_KEY"]],"endpoint_env":"GEMINI_BASE_URL","default_endpoint":"https://generativelanguage.googleapis.com","probe":"none","risk":"external-model-provider","default_state":"registered"},
+    {"id":"openrouter","kind":"model-router","protocol":"openai-compatible","credential_groups":[["OPENROUTER_API_KEY"]],"endpoint_env":"OPENROUTER_BASE_URL","default_endpoint":"https://openrouter.ai/api/v1","probe":"none","risk":"external-model-router","default_state":"registered"},
+    {"id":"ollama","kind":"local-model-runtime","protocol":"ollama-http","credential_groups":[],"endpoint_env":"OLLAMA_HOST","default_endpoint":"http://127.0.0.1:11434","health_path":"/api/tags","probe":"http-get","risk":"local-runtime","default_state":"registered"},
+    {"id":"generic-openai-compatible","kind":"model-provider-template","protocol":"openai-compatible","required_env":["PEFY_GENERIC_OPENAI_BASE_URL"],"credential_groups":[["PEFY_GENERIC_OPENAI_API_KEY"],[]],"endpoint_env":"PEFY_GENERIC_OPENAI_BASE_URL","probe":"none","risk":"external-or-local-provider","default_state":"registered"},
+    {"id":"zai","kind":"model-provider","protocol":"runtime-native","credential_groups":[["ZAI_API_KEY"]],"probe":"none","risk":"external-model-provider","default_state":"registered"},
+    {"id":"ai-gateway","kind":"model-router","protocol":"runtime-native","credential_groups":[["AI_GATEWAY_API_KEY"]],"probe":"none","risk":"external-model-router","default_state":"registered"},
+    {"id":"minimax","kind":"model-provider","protocol":"runtime-native","credential_groups":[["MINIMAX_API_KEY"]],"probe":"none","risk":"external-model-provider","default_state":"registered"},
+    {"id":"synthetic","kind":"model-provider","protocol":"runtime-native","credential_groups":[["SYNTHETIC_API_KEY"]],"probe":"none","risk":"external-model-provider","default_state":"registered"},
     {
-      "id": "openai",
-      "kind": "model-provider",
-      "protocol": "openai-compatible",
-      "credential_groups": [["OPENAI_API_KEY"]],
-      "endpoint_env": "OPENAI_BASE_URL",
-      "default_endpoint": "https://api.openai.com/v1",
-      "probe": "none",
-      "risk": "external-model-provider",
-      "default_state": "registered"
+      "id":"devswarm-mcp",
+      "kind":"agent-orchestration-tool",
+      "protocol":"mcp-stdio",
+      "source":"https://github.com/justrach/devswarm",
+      "pinned_version":"v0.0.28",
+      "command_env":"PEFY_DEVSWARM_BINARY",
+      "default_command":"devswarm",
+      "args":["--mcp"],
+      "required_env":["REPO_PATH"],
+      "forced_env":{"DEVSWARM_TELEMETRY":"false"},
+      "observed_license":"AGPL-3.0",
+      "license_documentation_conflict":"README at v0.0.28 says MIT while LICENSE is AGPL-3.0",
+      "probe":"command-version",
+      "risk":"external-copyleft-agent-runtime",
+      "default_state":"evaluation-only-legal-hold"
     },
     {
-      "id": "anthropic",
-      "kind": "model-provider",
-      "protocol": "anthropic-compatible",
-      "credential_groups": [["ANTHROPIC_API_KEY"]],
-      "endpoint_env": "ANTHROPIC_BASE_URL",
-      "default_endpoint": "https://api.anthropic.com",
-      "probe": "none",
-      "risk": "external-model-provider",
-      "default_state": "registered"
-    },
-    {
-      "id": "google-gemini",
-      "kind": "model-provider",
-      "protocol": "google-gemini-compatible",
-      "credential_groups": [["GEMINI_API_KEY"], ["GOOGLE_API_KEY"]],
-      "endpoint_env": "GEMINI_BASE_URL",
-      "default_endpoint": "https://generativelanguage.googleapis.com",
-      "probe": "none",
-      "risk": "external-model-provider",
-      "default_state": "registered"
-    },
-    {
-      "id": "openrouter",
-      "kind": "model-router",
-      "protocol": "openai-compatible",
-      "credential_groups": [["OPENROUTER_API_KEY"]],
-      "endpoint_env": "OPENROUTER_BASE_URL",
-      "default_endpoint": "https://openrouter.ai/api/v1",
-      "probe": "none",
-      "risk": "external-model-router",
-      "default_state": "registered"
-    },
-    {
-      "id": "ollama",
-      "kind": "local-model-runtime",
-      "protocol": "ollama-http",
-      "credential_groups": [],
-      "endpoint_env": "OLLAMA_HOST",
-      "default_endpoint": "http://127.0.0.1:11434",
-      "health_path": "/api/tags",
-      "probe": "http-get",
-      "risk": "local-runtime",
-      "default_state": "registered"
-    },
-    {
-      "id": "generic-openai-compatible",
-      "kind": "model-provider-template",
-      "protocol": "openai-compatible",
-      "required_env": ["PEFY_GENERIC_OPENAI_BASE_URL"],
-      "credential_groups": [["PEFY_GENERIC_OPENAI_API_KEY"], []],
-      "endpoint_env": "PEFY_GENERIC_OPENAI_BASE_URL",
-      "probe": "none",
-      "risk": "external-or-local-provider",
-      "default_state": "registered"
-    },
-    {
-      "id": "zai",
-      "kind": "model-provider",
-      "protocol": "runtime-native",
-      "credential_groups": [["ZAI_API_KEY"]],
-      "probe": "none",
-      "risk": "external-model-provider",
-      "default_state": "registered"
-    },
-    {
-      "id": "ai-gateway",
-      "kind": "model-router",
-      "protocol": "runtime-native",
-      "credential_groups": [["AI_GATEWAY_API_KEY"]],
-      "probe": "none",
-      "risk": "external-model-router",
-      "default_state": "registered"
-    },
-    {
-      "id": "minimax",
-      "kind": "model-provider",
-      "protocol": "runtime-native",
-      "credential_groups": [["MINIMAX_API_KEY"]],
-      "probe": "none",
-      "risk": "external-model-provider",
-      "default_state": "registered"
-    },
-    {
-      "id": "synthetic",
-      "kind": "model-provider",
-      "protocol": "runtime-native",
-      "credential_groups": [["SYNTHETIC_API_KEY"]],
-      "probe": "none",
-      "risk": "external-model-provider",
-      "default_state": "registered"
+      "id":"devswarm-desktop",
+      "kind":"developer-workstation-ade",
+      "protocol":"external-desktop",
+      "source":"https://github.com/devswarm-ai/devswarm",
+      "product_url":"https://devswarm.ai",
+      "supported_platforms":["macos-14+-apple-silicon","windows-11"],
+      "observed_license":"proprietary-all-rights-reserved",
+      "credential_model":"bring-your-own-agent-account-or-key",
+      "data_model":"local-workspaces-and-git-worktrees",
+      "probe":"external-workstation",
+      "risk":"proprietary-workstation-tool",
+      "default_state":"optional-workstation-adapter"
     }
   ],
   "protocol_templates": [
-    {
-      "id": "mcp-stdio",
-      "kind": "tool-protocol",
-      "required_instance_fields": ["command", "args", "source", "version", "license"],
-      "secret_transport": "environment",
-      "execution": "subprocess-sandbox-required"
-    },
-    {
-      "id": "mcp-http",
-      "kind": "tool-protocol",
-      "required_instance_fields": ["endpoint", "source", "version", "license"],
-      "secret_transport": "header-via-secret-store",
-      "execution": "network-policy-required"
-    },
-    {
-      "id": "openapi",
-      "kind": "api-protocol",
-      "required_instance_fields": ["spec", "source", "version", "license"],
-      "secret_transport": "external-secret-store",
-      "execution": "allowlist-required"
-    },
-    {
-      "id": "cli",
-      "kind": "tool-protocol",
-      "required_instance_fields": ["executable", "version", "source", "license"],
-      "secret_transport": "environment",
-      "execution": "command-allowlist-required"
-    },
-    {
-      "id": "webhook",
-      "kind": "event-protocol",
-      "required_instance_fields": ["endpoint", "event_contract", "source"],
-      "secret_transport": "signed-request",
-      "execution": "network-policy-required"
-    },
-    {
-      "id": "a2a",
-      "kind": "agent-protocol",
-      "required_instance_fields": ["endpoint", "agent_card", "source", "version"],
-      "secret_transport": "external-secret-store",
-      "execution": "identity-and-scope-required"
-    },
-    {
-      "id": "skill-md",
-      "kind": "skill-contract",
-      "required_instance_fields": ["skill_path", "source", "version", "license"],
-      "secret_transport": "none",
-      "execution": "omega-esf-certification-required"
-    }
+    {"id":"mcp-stdio","kind":"tool-protocol","required_instance_fields":["command","args","source","version","license"],"secret_transport":"environment","execution":"subprocess-sandbox-required"},
+    {"id":"mcp-http","kind":"tool-protocol","required_instance_fields":["endpoint","source","version","license"],"secret_transport":"header-via-secret-store","execution":"network-policy-required"},
+    {"id":"openapi","kind":"api-protocol","required_instance_fields":["spec","source","version","license"],"secret_transport":"external-secret-store","execution":"allowlist-required"},
+    {"id":"cli","kind":"tool-protocol","required_instance_fields":["executable","version","source","license"],"secret_transport":"environment","execution":"command-allowlist-required"},
+    {"id":"webhook","kind":"event-protocol","required_instance_fields":["endpoint","event_contract","source"],"secret_transport":"signed-request","execution":"network-policy-required"},
+    {"id":"a2a","kind":"agent-protocol","required_instance_fields":["endpoint","agent_card","source","version"],"secret_transport":"external-secret-store","execution":"identity-and-scope-required"},
+    {"id":"skill-md","kind":"skill-contract","required_instance_fields":["skill_path","source","version","license"],"secret_transport":"none","execution":"omega-esf-certification-required"}
   ],
   "runtime_targets": [
-    {
-      "id": "openclaw",
-      "command": ["openclaw", "--version"],
-      "required": true,
-      "qualification": "scripts/pefy-runtime-rebaseline.sh"
-    },
-    {
-      "id": "clawteam",
-      "command": ["clawteam", "--version"],
-      "required": true,
-      "qualification": "scripts/verify-pefy-production.sh"
-    },
-    {
-      "id": "codex-cli",
-      "command": ["codex", "--version"],
-      "required": false,
-      "qualification": "external-adapter"
-    },
-    {
-      "id": "claude-code",
-      "command": ["claude", "--version"],
-      "required": false,
-      "qualification": "external-adapter"
-    },
-    {
-      "id": "gemini-cli",
-      "command": ["gemini", "--version"],
-      "required": false,
-      "qualification": "external-adapter"
-    },
-    {
-      "id": "opencode",
-      "command": ["opencode", "--version"],
-      "required": false,
-      "qualification": "external-adapter"
-    }
+    {"id":"openclaw","command":["openclaw","--version"],"required":true,"qualification":"PEFY OpenClaw runtime qualification"},
+    {"id":"clawteam","command":["clawteam","--version"],"required":true,"qualification":"ClawTeam production qualifier"},
+    {"id":"devswarm-mcp","command":["devswarm","--version"],"required":false,"qualification":"evaluation-only until license conflict is resolved"},
+    {"id":"codex-cli","command":["codex","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"claude-code","command":["claude","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"gemini-cli","command":["gemini","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"opencode","command":["opencode","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"aider","command":["aider","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"goose","command":["goose","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"amazon-q","command":["q","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"github-copilot-cli","command":["github-copilot","--version"],"required":false,"qualification":"external-adapter"},
+    {"id":"cursor-cli","command":["cursor-agent","--version"],"required":false,"qualification":"external-adapter"}
   ],
   "capability_packs": [
     {
-      "id": "code-modernization",
-      "name": "PEFY Code Modernization Pack",
-      "portable": true,
-      "capabilities": [
-        "repository-analysis",
-        "dependency-modernization",
-        "codemod-planning",
-        "codemod-execution",
-        "test-generation",
-        "lint-format-repair",
-        "security-review",
-        "migration-planning",
-        "performance-regression-check",
-        "rollback-plan"
-      ],
-      "approval_required_for": [
-        "destructive-change",
-        "dependency-major-upgrade",
-        "security-policy-change",
-        "schema-migration",
-        "production-deploy",
-        "public-release"
-      ]
+      "id":"code-modernization",
+      "name":"PEFY Code Modernization Pack",
+      "portable":true,
+      "stages":["inventory","provenance","dependency-analysis","security-analysis","architecture-analysis","codemod-plan","isolated-implementation","tests","performance-check","review-fix-loop","migration-plan","rollback-proof","promotion"],
+      "capabilities":["repository-analysis","dependency-modernization","codemod-planning","codemod-execution","test-generation","lint-format-repair","security-review","migration-planning","performance-regression-check","rollback-plan"],
+      "approval_required_for":["destructive-change","dependency-major-upgrade","security-policy-change","schema-migration","production-deploy","public-release"]
     }
   ]
 }
