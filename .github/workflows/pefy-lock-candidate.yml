@@ -1,0 +1,59 @@
+name: PEFY Frontend Lock Candidate
+
+on:
+  pull_request:
+    paths:
+      - "frontend/package.json"
+      - ".github/workflows/pefy-lock-candidate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  generate-lock-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Resolve deterministic lock candidate
+        run: |
+          set -euo pipefail
+          cd frontend
+          npm install --package-lock-only --ignore-scripts
+
+      - name: Audit production dependency graph
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pefy-lock-candidate
+          cd frontend
+          npm audit --omit=dev --json > ../artifacts/pefy-lock-candidate/npm-audit-production.json || true
+          cp package-lock.json ../artifacts/pefy-lock-candidate/package-lock.json
+          cp package.json ../artifacts/pefy-lock-candidate/package.json
+
+      - name: Report production severity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          audit = json.loads(Path("artifacts/pefy-lock-candidate/npm-audit-production.json").read_text())
+          counts = audit.get("metadata", {}).get("vulnerabilities", {})
+          print("Candidate production audit:", counts)
+          if not isinstance(counts, dict):
+              raise SystemExit("npm audit metadata missing")
+          PY
+
+      - name: Upload lock candidate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pefy-frontend-lock-candidate
+          if-no-files-found: error
+          path: artifacts/pefy-lock-candidate/**
