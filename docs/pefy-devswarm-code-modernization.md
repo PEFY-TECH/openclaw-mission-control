@@ -10,6 +10,8 @@ The PEFY Code Modernization Fabric provides one provider-neutral contract for De
 
 Official DevSwarm documentation states that the product is a proprietary desktop application. Its public GitHub repository is the landing page and issue tracker, not the application source. Therefore PEFY must not fork, vendor, rebrand or absorb the application. DevSwarm is used behind a PEFY-owned adapter and remains replaceable.
 
+The PEFY evaluation baseline is **DevSwarm v2.5.0**. The official GitHub release was published on 2026-09-08 and identifies the original product release date as 2026-08-14. This baseline adds agent chat in the workspace editor, explicit chat support for Claude/GitHub Copilot/OpenAI Codex, VS Code theme integration, improved first-run/workspace creation and Windows reliability fixes. Re-evaluate provenance, release notes and compatibility before moving to a later version; do not auto-upgrade solely because a newer release exists.
+
 DevSwarm's useful capabilities for this architecture are:
 
 - isolated Git worktree per workspace;
@@ -23,7 +25,7 @@ DevSwarm's useful capabilities for this architecture are:
 
 ## Supported workstation model
 
-DevSwarm currently targets macOS and Windows, with WSL repository support on Windows. Git must be available in `PATH`, and at least one supported CLI coding assistant must be installed. The application is installed from the official DevSwarm download page and requires user sign-in.
+DevSwarm currently targets macOS and Windows, with WSL repository support on Windows. Git must be available in `PATH`, and at least one supported CLI coding assistant must be installed. The application is installed from the official DevSwarm download page and requires user sign-in. The public GitHub release does not provide the proprietary application binaries as release assets, so the official DevSwarm distribution channel remains the installation source.
 
 ### macOS prerequisite example
 
@@ -79,8 +81,8 @@ Keep repositories in their native environment where practical; cross-boundary Wi
 
 ## Repository onboarding in DevSwarm
 
-1. Install and launch DevSwarm from the official distribution.
-2. Sign in with the approved Google or GitHub identity.
+1. Install DevSwarm v2.5.0 from the official distribution for the initial PEFY baseline (or use a later version only after a documented re-evaluation).
+2. Launch DevSwarm and sign in with the approved Google or GitHub identity.
 3. Connect GitHub through DevSwarm OAuth only after reviewing requested permissions.
 4. Add or clone the repository.
 5. Set the correct source/default branch (`master` for Mission Control unless the repository is intentionally rebaselined).
