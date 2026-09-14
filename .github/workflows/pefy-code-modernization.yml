@@ -1,0 +1,130 @@
+name: PEFY Code Modernization Fabric
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "GEMINI.md"
+      - ".github/copilot-instructions.md"
+      - ".cursor/rules/**"
+      - "config/pefy-code-modernization.yaml"
+      - "docs/pefy-devswarm-code-modernization.md"
+      - "scripts/pefy-modernization-preflight.sh"
+      - ".github/workflows/pefy-code-modernization.yml"
+  push:
+    branches: [master]
+    paths:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "GEMINI.md"
+      - ".github/copilot-instructions.md"
+      - ".cursor/rules/**"
+      - "config/pefy-code-modernization.yaml"
+      - "docs/pefy-devswarm-code-modernization.md"
+      - "scripts/pefy-modernization-preflight.sh"
+      - ".github/workflows/pefy-code-modernization.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  adapter-contract:
+    name: Provider-neutral adapter contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required adapter files
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            AGENTS.md
+            CLAUDE.md
+            GEMINI.md
+            .github/copilot-instructions.md
+            .cursor/rules/pefy-engineering.mdc
+            config/pefy-code-modernization.yaml
+            docs/pefy-devswarm-code-modernization.md
+            scripts/pefy-modernization-preflight.sh
+          )
+          for file in "${required[@]}"; do
+            test -s "$file" || { echo "missing or empty: $file" >&2; exit 1; }
+          done
+
+      - name: Validate tool adapters reference canonical policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'AGENTS.md' CLAUDE.md
+          grep -q 'AGENTS.md' GEMINI.md
+          grep -q 'AGENTS.md' .github/copilot-instructions.md
+          grep -q 'AGENTS.md' .cursor/rules/pefy-engineering.mdc
+          grep -q 'canonical: AGENTS.md' config/pefy-code-modernization.yaml
+
+      - name: Validate shell syntax
+        run: bash -n scripts/pefy-modernization-preflight.sh
+
+      - name: Preflight succeeds with one discovered assistant
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_bin="${RUNNER_TEMP}/pefy-test-bin"
+          mkdir -p "$test_bin"
+          cat > "$test_bin/pefy-test-agent" <<'EOF'
+          #!/usr/bin/env sh
+          exit 0
+          EOF
+          chmod +x "$test_bin/pefy-test-agent"
+          PATH="$test_bin:$PATH" \
+            PEFY_AI_COMMANDS=pefy-test-agent \
+            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"
+
+      - name: Preflight fails closed when no assistant exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if PEFY_AI_COMMANDS=pefy-definitely-missing-agent \
+            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"; then
+            echo "preflight unexpectedly passed without an assistant" >&2
+            exit 1
+          fi
+
+      - name: DevSwarm initialization requirement is enforced
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_bin="${RUNNER_TEMP}/pefy-test-bin-devswarm"
+          fake_home="${RUNNER_TEMP}/pefy-home"
+          mkdir -p "$test_bin" "$fake_home"
+          cat > "$test_bin/pefy-test-agent" <<'EOF'
+          #!/usr/bin/env sh
+          exit 0
+          EOF
+          chmod +x "$test_bin/pefy-test-agent"
+
+          if HOME="$fake_home" PATH="$test_bin:$PATH" \
+            PEFY_AI_COMMANDS=pefy-test-agent \
+            PEFY_REQUIRE_DEVSWARM=1 \
+            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"; then
+            echo "preflight unexpectedly passed without DevSwarm initialization evidence" >&2
+            exit 1
+          fi
+
+          mkdir -p "$fake_home/.devswarm"
+          HOME="$fake_home" PATH="$test_bin:$PATH" \
+            PEFY_AI_COMMANDS=pefy-test-agent \
+            PEFY_REQUIRE_DEVSWARM=1 \
+            bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"
+
+      - name: Reject weakened promotion language
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'promotion: fail-closed' config/pefy-code-modernization.yaml
+          grep -q 'runtime high vulnerabilities equal 0' config/pefy-code-modernization.yaml
+          grep -q 'runtime critical vulnerabilities equal 0' config/pefy-code-modernization.yaml
+          grep -q 'production qualification inferred from installation alone' config/pefy-code-modernization.yaml
