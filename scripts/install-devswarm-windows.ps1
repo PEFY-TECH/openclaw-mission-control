@@ -10,7 +10,7 @@ $ExpectedVersion = if ($env:PEFY_DEVSWARM_EXPECTED_VERSION) { $env:PEFY_DEVSWARM
 $ExpectedSha256 = if ($env:PEFY_DEVSWARM_EXPECTED_SHA256) { $env:PEFY_DEVSWARM_EXPECTED_SHA256.ToUpperInvariant() } else { '' }
 $ExpectedSignerThumbprint = if ($env:PEFY_DEVSWARM_EXPECTED_SIGNER_THUMBPRINT) { ($env:PEFY_DEVSWARM_EXPECTED_SIGNER_THUMBPRINT -replace '\s','').ToUpperInvariant() } else { '' }
 $LaunchAfterInstall = $env:PEFY_DEVSWARM_LAUNCH -eq '1'
-$KeepDownload = $env:PEFY_DEVSWARM_KEEP_DOWNLOAD -eq '1'
+$KeepDownload = if ($env:PEFY_DEVSWARM_KEEP_DOWNLOAD) { $env:PEFY_DEVSWARM_KEEP_DOWNLOAD -eq '1' } else { $true }
 $EvidenceDir = if ($env:PEFY_DEVSWARM_EVIDENCE_DIR) { $env:PEFY_DEVSWARM_EVIDENCE_DIR } else { Join-Path $HOME 'DevSwarm-PEFY-Evidence' }
 
 function Fail([string]$Message, [int]$Code = 1) {
@@ -75,11 +75,19 @@ try {
         Fail "Unexpected DevSwarm version: got '$detectedVersion', expected '$ExpectedVersion'." 25
     }
     Add-Content -Path (Join-Path $EvidenceDir 'installer.env') -Value "version=$detectedVersion" -Encoding UTF8
+    Add-Content -Path (Join-Path $EvidenceDir 'installer.env') -Value 'rollback_artifact=DevSwarm.exe' -Encoding UTF8
+
+    if ($KeepDownload) {
+        $retainedInstaller = Join-Path $EvidenceDir 'DevSwarm.exe'
+        Copy-Item -Path $Installer -Destination $retainedInstaller -Force
+        $retainedHash = (Get-FileHash -Path $retainedInstaller -Algorithm SHA256).Hash.ToUpperInvariant()
+        if ($retainedHash -ne $hash) { Fail 'Retained rollback installer hash mismatch.' 26 }
+    }
 
     Log "Signature and version verified: version=$detectedVersion signer=$signerSubject"
     Log 'Launching the signed installer interactively. Do not bypass SmartScreen or certificate warnings.'
     $process = Start-Process -FilePath $Installer -PassThru -Wait
-    if ($process.ExitCode -ne 0) { Fail "DevSwarm installer exited with code $($process.ExitCode)." 26 }
+    if ($process.ExitCode -ne 0) { Fail "DevSwarm installer exited with code $($process.ExitCode)." 27 }
 
     Log "Installer completed. Evidence directory: $EvidenceDir"
     Log 'Next: launch DevSwarm, sign in interactively, authorize only approved integrations, add the repository, then run the PEFY modernization preflight from the repository/WSL environment.'
@@ -93,7 +101,7 @@ try {
         if ($app) {
             $appSignature = Get-AuthenticodeSignature -FilePath $app
             if ($appSignature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
-                Fail "Installed DevSwarm executable signature is invalid: $($appSignature.Status)." 27
+                Fail "Installed DevSwarm executable signature is invalid: $($appSignature.Status)." 28
             }
             Start-Process -FilePath $app
             Log 'DevSwarm launched. Complete sign-in interactively; no credentials are handled by this script.'
@@ -103,7 +111,7 @@ try {
     }
 }
 finally {
-    if ($KeepDownload -and (Test-Path $Installer)) {
+    if ($KeepDownload -and (Test-Path $Installer) -and -not (Test-Path (Join-Path $EvidenceDir 'DevSwarm.exe'))) {
         Copy-Item -Path $Installer -Destination (Join-Path $EvidenceDir 'DevSwarm.exe') -Force
     }
     if (Test-Path $WorkDir) {
