@@ -13,6 +13,8 @@ on:
       - "docs/pefy-devswarm-code-modernization.md"
       - "docs/pefy-devswarm-installer-verification.md"
       - "scripts/pefy-modernization-preflight.sh"
+      - "scripts/install-devswarm-macos.sh"
+      - "scripts/install-devswarm-windows.ps1"
       - ".github/workflows/pefy-code-modernization.yml"
   push:
     branches: [master]
@@ -26,6 +28,8 @@ on:
       - "docs/pefy-devswarm-code-modernization.md"
       - "docs/pefy-devswarm-installer-verification.md"
       - "scripts/pefy-modernization-preflight.sh"
+      - "scripts/install-devswarm-macos.sh"
+      - "scripts/install-devswarm-windows.ps1"
       - ".github/workflows/pefy-code-modernization.yml"
 
 permissions:
@@ -53,6 +57,8 @@ jobs:
             docs/pefy-devswarm-code-modernization.md
             docs/pefy-devswarm-installer-verification.md
             scripts/pefy-modernization-preflight.sh
+            scripts/install-devswarm-macos.sh
+            scripts/install-devswarm-windows.ps1
           )
           for file in "${required[@]}"; do
             test -s "$file" || { echo "missing or empty: $file" >&2; exit 1; }
@@ -82,8 +88,42 @@ jobs:
           grep -q 'publisher authenticity' docs/pefy-devswarm-installer-verification.md
           grep -q 'independently published trusted checksum' docs/pefy-devswarm-installer-verification.md
 
-      - name: Validate shell syntax
-        run: bash -n scripts/pefy-modernization-preflight.sh
+      - name: Validate shell installer syntax and fail-closed invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/pefy-modernization-preflight.sh
+          bash -n scripts/install-devswarm-macos.sh
+          grep -q 'EXPECTED_VERSION="${PEFY_DEVSWARM_EXPECTED_VERSION:-2.5.0}"' scripts/install-devswarm-macos.sh
+          grep -q 'codesign --verify' scripts/install-devswarm-macos.sh
+          grep -q 'spctl --assess' scripts/install-devswarm-macos.sh
+          grep -q 'Unexpected DevSwarm version' scripts/install-devswarm-macos.sh
+
+      - name: Validate Windows installer syntax and fail-closed invariants
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/install-devswarm-windows.ps1'),
+            [ref]$null,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          $content = Get-Content 'scripts/install-devswarm-windows.ps1' -Raw
+          foreach ($required in @(
+            'Get-AuthenticodeSignature',
+            "ExpectedVersion = if (`$env:PEFY_DEVSWARM_EXPECTED_VERSION)",
+            '2.5.0',
+            'Unexpected DevSwarm version',
+            'SignatureStatus]::Valid'
+          )) {
+            if (-not $content.Contains($required)) {
+              throw "Windows installer invariant missing: $required"
+            }
+          }
 
       - name: Preflight succeeds with one discovered assistant
         shell: bash
