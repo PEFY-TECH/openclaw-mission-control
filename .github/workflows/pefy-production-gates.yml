@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
       - "frontend/src/app/project-gallery/**"
       - "compose.yml"
       - "compose.production.yml"
@@ -15,6 +17,8 @@ on:
     branches: [master]
     paths:
       - "backend/**"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
       - "frontend/src/app/project-gallery/**"
       - "compose.yml"
       - "compose.production.yml"
@@ -43,6 +47,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install uv
         run: python -m pip install --upgrade pip uv
@@ -85,6 +96,12 @@ jobs:
           export LOCAL_AUTH_TOKEN="$(python -c 'print("x" * 64)')"
           cd backend
           uv run pytest tests/test_readiness_api.py -v --tb=short
+
+      - name: Capture production frontend dependency audit
+        run: |
+          mkdir -p artifacts/pefy-production-gates
+          cd frontend
+          npm audit --omit=dev --json > ../artifacts/pefy-production-gates/npm-audit-production.json || true
 
       - name: Verify production invariants in source
         run: |
@@ -150,6 +167,33 @@ jobs:
             scripts/pefy-verify-backup.sh \
             scripts/pefy-restore-postgres.sh \
             > artifacts/pefy-production-gates/artifact-sha256.txt
+
+      - name: Enforce production dependency risk threshold
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/pefy-production-gates/npm-audit-production.json")
+          try:
+              data = json.loads(path.read_text(encoding="utf-8"))
+          except Exception as exc:
+              raise SystemExit(f"Production dependency audit evidence is unreadable: {exc}") from exc
+
+          vulnerabilities = data.get("metadata", {}).get("vulnerabilities")
+          if not isinstance(vulnerabilities, dict):
+              raise SystemExit("Production dependency audit did not return vulnerability metadata; fail closed")
+
+          critical = int(vulnerabilities.get("critical", 0) or 0)
+          high = int(vulnerabilities.get("high", 0) or 0)
+          moderate = int(vulnerabilities.get("moderate", 0) or 0)
+          low = int(vulnerabilities.get("low", 0) or 0)
+          print(f"Production dependency audit: critical={critical} high={high} moderate={moderate} low={low}")
+          if critical or high:
+              raise SystemExit(
+                  f"Production dependency risk gate failed: critical={critical}, high={high}"
+              )
+          PY
 
       - name: Upload production-gate evidence
         if: always()
