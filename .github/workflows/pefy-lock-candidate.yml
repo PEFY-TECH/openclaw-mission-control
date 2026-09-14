@@ -1,22 +1,28 @@
-name: PEFY Frontend Lock Candidate
+name: PEFY Frontend Supply-Chain Gate
 
 on:
   pull_request:
     paths:
       - "frontend/package.json"
+      - "frontend/package-lock.json"
       - ".github/workflows/pefy-lock-candidate.yml"
+  push:
+    branches: [master]
+    paths:
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - ".github/workflows/pefy-lock-candidate.yml"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  generate-lock-candidate:
+  frontend-supply-chain:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source PR branch
+      - name: Checkout immutable candidate
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -25,57 +31,65 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Resolve deterministic lock candidate
+      - name: Verify package-lock reproducibility
         run: |
           set -euo pipefail
+          cp frontend/package-lock.json "$RUNNER_TEMP/package-lock.before.json"
           cd frontend
           npm install --package-lock-only --ignore-scripts
+          cmp --silent package-lock.json "$RUNNER_TEMP/package-lock.before.json" || {
+            echo "Committed package-lock.json is not reproducible from package.json"
+            git --no-pager diff -- package-lock.json || true
+            exit 1
+          }
 
       - name: Audit production dependency graph
         run: |
           set -euo pipefail
-          mkdir -p artifacts/pefy-lock-candidate
+          mkdir -p artifacts/pefy-frontend-supply-chain
           cd frontend
-          npm audit --omit=dev --json > ../artifacts/pefy-lock-candidate/npm-audit-production.json || true
-          cp package-lock.json ../artifacts/pefy-lock-candidate/package-lock.json
-          cp package.json ../artifacts/pefy-lock-candidate/package.json
+          npm audit --omit=dev --json > ../artifacts/pefy-frontend-supply-chain/npm-audit-production.json || true
+          cp package-lock.json ../artifacts/pefy-frontend-supply-chain/package-lock.json
+          cp package.json ../artifacts/pefy-frontend-supply-chain/package.json
 
-      - name: Enforce candidate production severity
+      - name: Enforce production severity threshold
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
-          audit = json.loads(Path("artifacts/pefy-lock-candidate/npm-audit-production.json").read_text())
+          audit = json.loads(Path("artifacts/pefy-frontend-supply-chain/npm-audit-production.json").read_text())
           counts = audit.get("metadata", {}).get("vulnerabilities", {})
-          print("Candidate production audit:", counts)
           if not isinstance(counts, dict):
-              raise SystemExit("npm audit metadata missing")
+              raise SystemExit("npm audit metadata missing; fail closed")
           critical = int(counts.get("critical", 0) or 0)
           high = int(counts.get("high", 0) or 0)
+          moderate = int(counts.get("moderate", 0) or 0)
+          low = int(counts.get("low", 0) or 0)
+          print(f"Production frontend audit: critical={critical} high={high} moderate={moderate} low={low}")
           if critical or high:
-              raise SystemExit(f"Refusing to commit vulnerable lock candidate: critical={critical}, high={high}")
+              raise SystemExit(
+                  f"Frontend supply-chain gate failed: critical={critical}, high={high}"
+              )
           PY
 
-      - name: Commit audited lockfile to PR branch
+      - name: Capture lock provenance
         env:
-          PEFY_PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PEFY_CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PEFY_TESTED_MERGE_OR_COMMIT_SHA: ${{ github.sha }}
         run: |
-          set -euo pipefail
-          if git diff --quiet -- frontend/package-lock.json; then
-            echo "Lockfile already matches audited dependency graph"
-            exit 0
-          fi
-          git config user.name "PEFY Production Gate"
-          git config user.email "pefy-production-gate@users.noreply.github.com"
-          git add frontend/package-lock.json
-          git commit -m "security(frontend): refresh audited dependency lockfile"
-          git push origin "HEAD:${PEFY_PR_BRANCH}"
+          {
+            echo "candidate_head_sha=${PEFY_CANDIDATE_HEAD_SHA}"
+            echo "tested_merge_or_commit_sha=${PEFY_TESTED_MERGE_OR_COMMIT_SHA}"
+            echo "node=$(node --version)"
+            echo "npm=$(npm --version)"
+            sha256sum frontend/package.json frontend/package-lock.json
+          } > artifacts/pefy-frontend-supply-chain/provenance.txt
 
-      - name: Upload lock candidate evidence
+      - name: Upload frontend supply-chain evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pefy-frontend-lock-candidate
+          name: pefy-frontend-supply-chain-evidence
           if-no-files-found: error
-          path: artifacts/pefy-lock-candidate/**
+          path: artifacts/pefy-frontend-supply-chain/**
