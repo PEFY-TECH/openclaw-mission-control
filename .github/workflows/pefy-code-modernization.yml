@@ -94,6 +94,11 @@ jobs:
           set -euo pipefail
           bash -n scripts/pefy-modernization-preflight.sh
           bash -n scripts/install-devswarm-macos.sh
+          grep -q 'PEFY_DEVSWARM_APP_PATH' scripts/pefy-modernization-preflight.sh
+          if grep -q 'HOME}/\.devswarm' scripts/pefy-modernization-preflight.sh; then
+            echo 'preflight must not infer DevSwarm initialization from an undocumented ~/.devswarm directory' >&2
+            exit 1
+          fi
           grep -q 'EXPECTED_VERSION="${PEFY_DEVSWARM_EXPECTED_VERSION:-2.5.0}"' scripts/install-devswarm-macos.sh
           grep -q 'codesign --verify' scripts/install-devswarm-macos.sh
           grep -q 'spctl --assess' scripts/install-devswarm-macos.sh
@@ -115,7 +120,7 @@ jobs:
           $content = Get-Content 'scripts/install-devswarm-windows.ps1' -Raw
           foreach ($required in @(
             'Get-AuthenticodeSignature',
-            "ExpectedVersion = if (`$env:PEFY_DEVSWARM_EXPECTED_VERSION)",
+            'PEFY_DEVSWARM_EXPECTED_VERSION',
             '2.5.0',
             'Unexpected DevSwarm version',
             'SignatureStatus]::Valid'
@@ -150,12 +155,13 @@ jobs:
             exit 1
           fi
 
-      - name: DevSwarm initialization requirement is enforced
+      - name: Explicit DevSwarm application evidence is enforced
         shell: bash
         run: |
           set -euo pipefail
           test_bin="${RUNNER_TEMP}/pefy-test-bin-devswarm"
           fake_home="${RUNNER_TEMP}/pefy-home"
+          fake_app="${RUNNER_TEMP}/DevSwarm.test-app"
           mkdir -p "$test_bin" "$fake_home"
           cat > "$test_bin/pefy-test-agent" <<'EOF'
           #!/usr/bin/env sh
@@ -166,15 +172,17 @@ jobs:
           if HOME="$fake_home" PATH="$test_bin:$PATH" \
             PEFY_AI_COMMANDS=pefy-test-agent \
             PEFY_REQUIRE_DEVSWARM=1 \
+            PEFY_DEVSWARM_APP_PATH="${RUNNER_TEMP}/does-not-exist" \
             bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"; then
-            echo "preflight unexpectedly passed without DevSwarm initialization evidence" >&2
+            echo "preflight unexpectedly passed with missing DevSwarm application evidence" >&2
             exit 1
           fi
 
-          mkdir -p "$fake_home/.devswarm"
+          : > "$fake_app"
           HOME="$fake_home" PATH="$test_bin:$PATH" \
             PEFY_AI_COMMANDS=pefy-test-agent \
             PEFY_REQUIRE_DEVSWARM=1 \
+            PEFY_DEVSWARM_APP_PATH="$fake_app" \
             bash scripts/pefy-modernization-preflight.sh "$GITHUB_WORKSPACE"
 
       - name: Reject weakened promotion language
