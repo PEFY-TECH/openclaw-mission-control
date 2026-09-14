@@ -37,3 +37,30 @@
 ## Security & Configuration Tips
 - Never commit secrets. Copy from `.env.example` and keep real values in local `.env`.
 - Report vulnerabilities privately via GitHub security advisories, not public issues.
+
+## PEFY Multi-AI Governance
+- This file is the canonical repository contract for humans and AI assistants. Tool-specific instruction files are adapters and must not contradict it.
+- Work on an isolated branch or Git worktree. Never edit or push directly to `master` for implementation work.
+- Mission Control remains the governance/control plane. DevSwarm, ClawTeam, OpenClaw, IDE agents, CLI agents and external runtimes are subordinate execution adapters.
+- Prefer the smallest reversible change that satisfies the requirement. Preserve public contracts unless a migration is explicitly required and covered by tests/migration evidence.
+- Never weaken authentication, authorization, tenant isolation, execution allowlists, readiness, auditability, supply-chain gates or rollback controls to make a task pass.
+- Never commit credentials, tokens, private keys, production response bodies, customer data, backup archives or evidence containing identities/secrets.
+- Do not bulk-sync, blind-rebase, auto-upgrade or vendor external projects solely for parity. Verify canonical provenance, licence, security, compatibility, tests, benchmark impact and rollback first.
+
+## PEFY Required Agent Workflow
+1. Understand the task, repository boundaries and affected contracts.
+2. Inventory impacted code, dependencies, APIs, migrations, tests, docs, deployment and security surfaces.
+3. Execute in an isolated branch/worktree.
+4. Run targeted checks first, then repository-wide gates.
+5. For dependency changes, regenerate lockfiles reproducibly and assess runtime vulnerabilities separately from dev-only findings.
+6. For security-sensitive changes, prove both an allowed path and a denied/fail-closed path.
+7. Keep `/healthz` as liveness and `/readyz` dependency-aware; never report readiness when a required production dependency is unavailable.
+8. Record immutable candidate SHA/provenance for release evidence.
+9. Do not merge while required CI, review, security, deployment or rollback gates are incomplete.
+10. Preserve a deterministic rollback target.
+
+## Code Modernization Discipline
+Modernization is evidence-driven rather than version-chasing. Classify each change as one or more of: runtime/framework upgrade, dependency remediation, language/runtime migration, API migration, architecture refactor, performance optimization, security hardening, test modernization, observability modernization or developer-experience modernization. Every claimed improvement requires relevant before/after evidence and no security regression.
+
+## Agent Interoperability
+The same contract governs Codex/ChatGPT, Claude Code, Gemini CLI, GitHub Copilot, Cursor CLI, Amazon Q, Atlassian Rovo, Goose, Aider, Amp, Mistral Vibe, Qwen Code, OpenCode, Cline, Plandex, Droid, DevSwarm, OpenClaw/ClawTeam and future assistants. Provider-specific files may add syntax or discovery hints, but they may not create weaker policy paths.
