@@ -1,0 +1,10 @@
+---
+description: PEFY canonical engineering, modernization, security and release governance
+alwaysApply: true
+---
+
+Read and comply with the repository-root `AGENTS.md` before making changes. It is the canonical PEFY provider-neutral contract.
+
+Keep implementation isolated in a branch/worktree, preserve fail-closed security and readiness, do not commit secrets or production identity/evidence payloads, regenerate dependency lockfiles reproducibly, run targeted validation followed by repository-wide gates, and never merge or claim production readiness while required CI/review/runtime/rollback evidence is incomplete.
+
+For modernization work, classify the migration/refactor, inventory affected contracts and dependencies, verify provenance/licence/security, preserve rollback and produce before/after evidence. DevSwarm, Cursor and all other assistants remain subordinate execution adapters under the same contract.
