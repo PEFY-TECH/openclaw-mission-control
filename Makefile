@@ -46,7 +46,7 @@ frontend-format: frontend-tooling ## Format frontend (prettier)
 format-check: backend-format-check frontend-format-check ## Check formatting (no changes)
 
 .PHONY: backend-format-check
-backend-format-check: ## Check backend formatting (isort + black)
+backend-format-check: ## Check backend formatting (isort/black checks + diff)
 	cd $(BACKEND_DIR) && uv run isort . --check-only --diff
 	cd $(BACKEND_DIR) && uv run black . --check --diff
 
@@ -173,7 +173,6 @@ backend-templates-sync: ## Sync templates to existing gateway agents (usage: mak
 .PHONY: check
 check: lint typecheck backend-coverage frontend-test build ## Run lint + typecheck + tests + coverage + build
 
-
 .PHONY: docs-lint
 docs-lint: frontend-tooling ## Lint markdown files (tiny ruleset; avoids noisy churn)
 	$(NODE_WRAP) npx markdownlint-cli2@0.15.0 --config .markdownlint-cli2.yaml "**/*.md"
@@ -184,3 +183,17 @@ docs-link-check: ## Check for broken relative links in markdown docs
 
 .PHONY: docs-check
 docs-check: docs-lint docs-link-check ## Run all docs quality gates
+
+.PHONY: ecc-install
+ecc-install: ## Install pinned ECC CLI and native Codex plugin, then qualify them
+	ECC_REQUIRE_NATIVE_CODEX=1 bash scripts/pefy-ecc-install.sh
+	bash scripts/pefy-ecc-status.sh
+
+.PHONY: ecc-status
+ecc-status: ## Verify pinned ECC CLI and native Codex plugin activation
+	bash scripts/pefy-ecc-status.sh
+
+.PHONY: ecc-doctor
+ecc-doctor: ## Run ECC diagnostics without changing installation state
+	@command -v ecc >/dev/null 2>&1 || { echo "ecc CLI is not installed" >&2; exit 1; }
+	ecc doctor
