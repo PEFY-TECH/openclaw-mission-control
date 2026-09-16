@@ -32,7 +32,21 @@ Both layers are required for a qualified workstation/runtime:
    - runs `ecc doctor`;
    - runs `ecc list-installed` for post-install inspection.
 
-The canonical automation is:
+## Operator interface
+
+Use the PEFY wrapper instead of memorizing the upstream npm commands:
+
+```bash
+bash scripts/pefy-ecc install
+bash scripts/pefy-ecc status
+bash scripts/pefy-ecc doctor
+bash scripts/pefy-ecc list
+bash scripts/pefy-ecc version
+```
+
+`install` executes the complete dual-layer installation. `status` fails closed when the pinned global package is missing or has drifted from version `2.2.1`, then runs ECC diagnostics and installed-surface inspection.
+
+The underlying installer remains available directly:
 
 ```bash
 bash scripts/pefy-ecc-install.sh
@@ -47,7 +61,7 @@ ECC_VERSION=2.2.1 ECC_PROFILE=core ECC_TARGET=codex \
 
 ## Qualification
 
-`.github/workflows/ecc-qualification.yml` executes both installation layers in an isolated GitHub Actions runner and records npm registry provenance fields (`dist.integrity` and `dist.shasum`) before installation.
+`.github/workflows/ecc-qualification.yml` executes both installation layers in an isolated GitHub Actions runner and records npm registry provenance fields (`dist.integrity` and `dist.shasum`) before installation. It also validates the PEFY operator wrapper, verifies the pinned installed version, and runs the post-install status check.
 
 A green workflow proves that the pinned package can be retrieved, the global CLI installation succeeds, the Codex-target installation succeeds, and ECC diagnostics complete in that runner. It does **not** prove that any separate production host, developer workstation, or sovereign runtime has already been modified.
 
