@@ -17,7 +17,7 @@ on:
         default: codex
         type: string
       profile:
-        description: 'ECC install profile'
+        description: 'ECC compatibility profile for non-Codex targets'
         required: true
         default: core
         type: string
@@ -37,6 +37,7 @@ jobs:
       ECC_VERSION: '2.2.1'
       ECC_TARGET: ${{ inputs.target }}
       ECC_PROFILE: ${{ inputs.profile }}
+      ECC_REQUIRE_NATIVE_CODEX: '1'
     steps:
       - name: Checkout trusted master
         uses: actions/checkout@v4
@@ -50,6 +51,15 @@ jobs:
           set -euo pipefail
           git status --short
           git rev-parse HEAD
+
+      - name: Preflight native Codex runtime
+        if: ${{ inputs.target == 'codex' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v codex
+          codex --version
+          codex plugin --help >/dev/null
 
       - name: Inspect ECC host state
         if: ${{ inputs.action == 'status' }}
