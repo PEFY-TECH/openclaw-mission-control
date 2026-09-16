@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/pefy-ecc <command>
+
+Commands:
+  install   Install and qualify both ECC layers
+  status    Verify pinned global CLI and installed surfaces
+  doctor    Run ECC diagnostics
+  list      List installed ECC surfaces
+  version   Print the installed ECC CLI/package version
+EOF
+}
+
+command_name="${1:-}"
+case "${command_name}" in
+  install)
+    exec bash "${ROOT_DIR}/scripts/pefy-ecc-install.sh"
+    ;;
+  status)
+    exec bash "${ROOT_DIR}/scripts/pefy-ecc-status.sh"
+    ;;
+  doctor)
+    command -v ecc >/dev/null 2>&1 || { echo '[PEFY ECC] ecc CLI is not installed' >&2; exit 1; }
+    exec ecc doctor
+    ;;
+  list)
+    command -v ecc >/dev/null 2>&1 || { echo '[PEFY ECC] ecc CLI is not installed' >&2; exit 1; }
+    exec ecc list-installed
+    ;;
+  version)
+    command -v ecc >/dev/null 2>&1 || { echo '[PEFY ECC] ecc CLI is not installed' >&2; exit 1; }
+    npm root -g >/dev/null
+    exec node -e 'const path=require("path"); const root=require("child_process").execFileSync("npm",["root","-g"],{encoding:"utf8"}).trim(); const p=require(path.join(root,"ecc-universal","package.json")); process.stdout.write(String(p.version||"")+"\n");'
+    ;;
+  -h|--help|help|'')
+    usage
+    ;;
+  *)
+    echo "Unknown command: ${command_name}" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

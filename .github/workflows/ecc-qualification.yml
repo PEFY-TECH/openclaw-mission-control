@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'scripts/pefy-ecc-install.sh'
+      - 'scripts/pefy-ecc-status.sh'
+      - 'scripts/pefy-ecc'
       - '.github/workflows/ecc-qualification.yml'
       - 'docs/ECC_INTEGRATION.md'
   workflow_dispatch:
@@ -29,6 +31,15 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Validate operator scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/pefy-ecc-install.sh
+          bash -n scripts/pefy-ecc-status.sh
+          bash -n scripts/pefy-ecc
+          bash scripts/pefy-ecc --help
+
       - name: Record npm provenance metadata
         shell: bash
         run: |
@@ -37,4 +48,11 @@ jobs:
 
       - name: Install and verify both ECC layers
         shell: bash
-        run: bash scripts/pefy-ecc-install.sh
+        run: bash scripts/pefy-ecc install
+
+      - name: Verify operator status and pinned version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(bash scripts/pefy-ecc version)" = "${ECC_VERSION}"
+          bash scripts/pefy-ecc status
