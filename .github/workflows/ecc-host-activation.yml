@@ -1,0 +1,65 @@
+name: ECC host activation
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Host operation'
+        required: true
+        default: status
+        type: choice
+        options:
+          - status
+          - install
+      target:
+        description: 'ECC harness target'
+        required: true
+        default: codex
+        type: string
+      profile:
+        description: 'ECC install profile'
+        required: true
+        default: core
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ecc-host-activation
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    runs-on: [self-hosted, linux, pefy-ecc]
+    timeout-minutes: 20
+    env:
+      ECC_VERSION: '2.2.1'
+      ECC_TARGET: ${{ inputs.target }}
+      ECC_PROFILE: ${{ inputs.profile }}
+    steps:
+      - name: Checkout trusted master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Confirm trusted revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          git rev-parse HEAD
+
+      - name: Inspect ECC host state
+        if: ${{ inputs.action == 'status' }}
+        shell: bash
+        run: bash scripts/pefy-ecc-status.sh
+
+      - name: Install and qualify ECC host state
+        if: ${{ inputs.action == 'install' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/pefy-ecc-install.sh
+          bash scripts/pefy-ecc-status.sh
