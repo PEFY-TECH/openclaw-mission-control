@@ -173,7 +173,6 @@ backend-templates-sync: ## Sync templates to existing gateway agents (usage: mak
 .PHONY: check
 check: lint typecheck backend-coverage frontend-test build ## Run lint + typecheck + tests + coverage + build
 
-
 .PHONY: docs-lint
 docs-lint: frontend-tooling ## Lint markdown files (tiny ruleset; avoids noisy churn)
 	$(NODE_WRAP) npx markdownlint-cli2@0.15.0 --config .markdownlint-cli2.yaml "**/*.md"
@@ -184,3 +183,16 @@ docs-link-check: ## Check for broken relative links in markdown docs
 
 .PHONY: docs-check
 docs-check: docs-lint docs-link-check ## Run all docs quality gates
+
+.PHONY: ecc-install
+ecc-install: ## Install pinned ECC CLI and native Codex plugin, then qualify them
+	bash scripts/pefy-ecc install
+	bash scripts/pefy-ecc status
+
+.PHONY: ecc-status
+ecc-status: ## Verify pinned ECC CLI and native Codex plugin activation
+	bash scripts/pefy-ecc status
+
+.PHONY: ecc-doctor
+ecc-doctor: ## Run ECC diagnostics without changing installation state
+	bash scripts/pefy-ecc doctor
