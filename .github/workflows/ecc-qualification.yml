@@ -1,0 +1,40 @@
+name: ECC qualification
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/pefy-ecc-install.sh'
+      - '.github/workflows/ecc-qualification.yml'
+      - 'docs/ECC_INTEGRATION.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ecc-dual-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ECC_VERSION: '2.2.1'
+      ECC_PROFILE: core
+      ECC_TARGET: codex
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Record npm provenance metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm view "ecc-universal@${ECC_VERSION}" version dist.integrity dist.shasum --json
+
+      - name: Install and verify both ECC layers
+        shell: bash
+        run: bash scripts/pefy-ecc-install.sh
