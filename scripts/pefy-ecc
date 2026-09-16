@@ -8,8 +8,8 @@ usage() {
 Usage: scripts/pefy-ecc <command>
 
 Commands:
-  install   Install and qualify both ECC layers
-  status    Verify pinned global CLI and installed surfaces
+  install   Install pinned ECC CLI + native Codex plugin, then qualify them
+  status    Verify pinned global CLI + native Codex plugin activation
   doctor    Run ECC diagnostics
   list      List installed ECC surfaces
   version   Print the installed ECC CLI/package version
@@ -19,7 +19,7 @@ EOF
 command_name="${1:-}"
 case "${command_name}" in
   install)
-    exec bash "${ROOT_DIR}/scripts/pefy-ecc-install.sh"
+    ECC_REQUIRE_NATIVE_CODEX=1 exec bash "${ROOT_DIR}/scripts/pefy-ecc-install.sh"
     ;;
   status)
     exec bash "${ROOT_DIR}/scripts/pefy-ecc-status.sh"
